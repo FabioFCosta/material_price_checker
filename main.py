@@ -8,7 +8,6 @@ from datetime import datetime
 
 
 st.set_page_config(page_title="Material Price Checker", layout="wide")
-
 with st.sidebar:
     st.header("⚙️ Configurações do Modelo")
 
