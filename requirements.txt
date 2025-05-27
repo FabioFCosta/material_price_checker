@@ -1,0 +1,7 @@
+streamlit
+pandas
+openpyxl
+tabula-py
+PyPDF2
+python-dotenv
+openai
