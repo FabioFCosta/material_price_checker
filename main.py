@@ -3,13 +3,12 @@ import streamlit as st
 import pandas as pd
 import json
 from utils import extract_data_from_file
-from agents import orquestrar_agentes  # A função orquestradora
+from agents import orquestrar_agentes  
 from datetime import datetime
 
 
 st.set_page_config(page_title="Material Price Checker", layout="wide")
 
-# --- Sidebar para seleção do modelo Gemini ---
 with st.sidebar:
     st.header("⚙️ Configurações do Modelo")
 
@@ -23,7 +22,6 @@ with st.sidebar:
     selected_model = st.selectbox(
         "Selecione o Modelo Gemini:",
         gemini_models,
-        # Modelo padrão selecionado
         index=gemini_models.index("gemini-2.0-flash")
     )
     st.info(f"Modelo selecionado: **{selected_model}**")
@@ -50,7 +48,6 @@ if uploaded_file:
 
         with st.spinner(f"Analisando materiais e pesquisando preços de mercado com {selected_model}..."):
             try:
-                # Passa o modelo selecionado para a função orquestradora
                 result = orquestrar_agentes(
                     raw_text_content, data_de_hoje, selected_model)
                 json_string_analysis = result.get("analise_json")
