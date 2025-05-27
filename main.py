@@ -1,4 +1,3 @@
-# main.py
 import os
 import streamlit as st
 import pandas as pd
@@ -12,7 +11,7 @@ from urllib.parse import urlparse, parse_qs
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
     
-REDIRECT_URI = "https://material-price-checker.streamlit.app"
+REDIRECT_URI = "https://material-price-checker.streamlit.app/"
 
 AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -23,13 +22,15 @@ def get_authorization_url():
     client = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
                            scope="openid email profile", redirect_uri=REDIRECT_URI)
     uri, state = client.create_authorization_url(AUTHORIZATION_ENDPOINT)
-    st.session_state['oauth_state'] = state
+    # Store the state. Even if it gets lost sometimes, we'll try to recover from URL.
+    st.session_state['oauth_state_sent'] = state # Renamed for clarity
     return uri
 
 
-def fetch_token(code):
+# Modified fetch_token to accept 'state_from_google_redirect'
+def fetch_token(code, state_from_google_redirect):
     client = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
-                           redirect_uri=REDIRECT_URI, state=st.session_state['oauth_state'])
+                           redirect_uri=REDIRECT_URI, state=state_from_google_redirect)
     token = client.fetch_token(TOKEN_ENDPOINT, code=code)
     return token
 
@@ -46,38 +47,61 @@ def main():
     query_params = st.query_params
     
     if "user_info" not in st.session_state:
-        if "code" not in query_params:
+        if "code" in query_params:
+            auth_code = query_params["code"]
+            state_from_google = query_params.get("state")
+            original_state_sent = st.session_state.get('oauth_state_sent')
+
+            if state_from_google: 
+                try:
+                    token = fetch_token(auth_code, state_from_google)
+                    user_info = get_user_info(token)
+                    st.session_state["user_info"] = user_info
+                    
+                    st.experimental_set_query_params()
+                    if 'oauth_state_sent' in st.session_state:
+                        del st.session_state['oauth_state_sent']
+                        
+                    st.experimental_rerun() 
+                except Exception as e:
+                    st.error(f"Erro ao fazer login. Por favor, tente novamente. Detalhes: {e}")
+                    st.session_state.pop("user_info", None)
+                    st.session_state.pop('oauth_state_sent', None)
+                    st.experimental_set_query_params() 
+                    st.markdown(f"[Login with Google]({get_authorization_url()})") 
+                    st.stop()
+            else:
+                st.warning("Parâmetro 'state' ausente na URL de redirecionamento. Tentando fazer login novamente.")
+                st.session_state.pop("user_info", None)
+                st.session_state.pop('oauth_state_sent', None)
+                st.experimental_set_query_params()
+                st.markdown(f"[Login with Google]({get_authorization_url()})")
+                st.stop()
+                
+        else:
             auth_url = get_authorization_url()
             st.markdown(f"[Login with Google]({auth_url})")
-            st.stop()  
-        
-        code = query_params["code"][0]
-        token = fetch_token(code)
-        user_info = get_user_info(token)
-        st.session_state["user_info"] = user_info
-        
-        st.experimental_set_query_params()
+            st.stop() 
 
     user_info = st.session_state["user_info"]
-    st.success(f"Welcome {user_info['name']} ({user_info['email']})")
+    st.success(f"Bem-vindo(a) {user_info['name']} ({user_info['email']})")
 
     google_api_key = os.getenv("GOOGLE_API_KEY")
     if not google_api_key:
-        st.sidebar.error('Ocorreu algum erro ao registar a CHAVE da API do GOOGLE.')
+        st.sidebar.error('Ocorreu algum erro ao registrar a CHAVE da API do GOOGLE.')
     else:
         st.sidebar.header("⚙️ Configurações do Modelo")
         gemini_models = [
             "gemini-1.5-flash",
             "gemini-1.5-pro",
-            "gemini-2.0-flash",
+            "gemini-2.0-flash"
         ]
         selected_model = st.sidebar.selectbox(
             "Selecione o Modelo Gemini:",
             gemini_models,
-            index=gemini_models.index("gemini-2.0-flash")
+            index=gemini_models.index("gemini-2.0-flash") 
         )
         st.sidebar.info(f"Modelo selecionado: **{selected_model}**")
-
 
     st.title("🏗️ Material Price Checker")
     st.write("Envie um arquivo PDF ou XLSX com orçamento de materiais de construção para verificar possíveis preços inconsistentes.")
