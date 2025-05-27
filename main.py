@@ -12,7 +12,7 @@ from urllib.parse import urlparse, parse_qs
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
     
-REDIRECT_URI = "https://material-price-checker.streamlit.app/"
+REDIRECT_URI = "https://material-price-checker.streamlit.app"
 
 AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
