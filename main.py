@@ -1,4 +1,5 @@
 # main.py
+import os
 import streamlit as st
 import pandas as pd
 import json
@@ -6,30 +7,36 @@ from utils import extract_data_from_file
 from agents import orquestrar_agentes  
 from datetime import datetime
 
+google_api_key = os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
+
 
 st.set_page_config(page_title="Material Price Checker", layout="wide")
 with st.sidebar:
-    st.header("⚙️ Configurações do Modelo")
 
-    gemini_models = [
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-2.0-flash",
+    if not google_api_key:
+        st.error('Ocorreu algum erro ao registar a CHAVE da API do GOOGLE.')
+    else:
+        st.header("⚙️ Configurações do Modelo")
 
-    ]
+        gemini_models = [
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-2.0-flash",
 
-    selected_model = st.selectbox(
-        "Selecione o Modelo Gemini:",
-        gemini_models,
-        index=gemini_models.index("gemini-2.0-flash")
-    )
-    st.info(f"Modelo selecionado: **{selected_model}**")
+        ]
+
+        selected_model = st.selectbox(
+            "Selecione o Modelo Gemini:",
+            gemini_models,
+            index=gemini_models.index("gemini-2.0-flash")
+        )
+        st.info(f"Modelo selecionado: **{selected_model}**")
 
 st.title("🏗️ Material Price Checker")
 st.write("Envie um arquivo PDF ou XLSX com orçamento de materiais de construção para verificar possíveis preços inconsistentes.")
 
 uploaded_file = st.file_uploader(
-    "Faça upload do arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"])
+    "Faça upload do arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"], disabled= not google_api_key)
 
 if uploaded_file:
     with st.spinner("Extraindo dados do arquivo..."):
