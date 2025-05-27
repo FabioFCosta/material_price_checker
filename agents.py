@@ -30,8 +30,7 @@ def call_agent(agent: Agent, message_text: str, user_id: str, session_id: str) -
             if event.is_final_response():
                 for part in event.content.parts:
                     if part.text is not None:
-                        final_response += part.text
-                        final_response += "\n"
+                        final_response += part.text + "\n"
         return final_response
     except Exception as e:
         return f"Erro ao processar o agente {agent.name}: {str(e)}"
@@ -96,8 +95,8 @@ def extract_data_from_text(text_content: str, data_de_hoje: str, user_id: str, s
 
 def search_market_price(text_content: str, data_de_hoje: str, user_id: str, session_id: str, model_name: str):
     buscador = Agent(
-        name='agente_buscador', # Mudei o nome para ser mais específico
-        model=model_name, # USA O MODELO SELECIONADO AQUI
+        name='agente_buscador',
+        model=model_name,
         description='Agente que busca a margem de preço dos materiais.',
         tools=[google_search],
         instruction="""
@@ -149,7 +148,7 @@ def analyze_material_prices(text_content: str, data_de_hoje: str, user_id: str, 
     """
     analizador = Agent(
         name='agente_analisador_precos',
-        model=model_name, # USA O MODELO SELECIONADO AQUI
+        model=model_name,
         description='Agente que analisa e compara preços de materiais de construção.',
         tools=[google_search],
         instruction="""
@@ -167,46 +166,24 @@ def analyze_material_prices(text_content: str, data_de_hoje: str, user_id: str, 
             - "Abaixo do mercado": se o preço cotado for significativamente menor que a faixa de mercado ou o encontrado na pesquisa.
             - "Pesquisa necessária": se 'maior_preco' ou 'menor_preco' forem null e você não conseguir determinar o status após a pesquisa.
 
-            Retorne uma lista de objetos JSON, onde cada objeto representa um material analisado.
-            Inclua as chaves: "material", "preco_cotacao", "maior_preco", "menor_preco", "variacao_porcentual" (calculada se possível), e "status".
-            A 'variacao_porcentual' deve ser a diferença percentual do 'preco_cotacao' em relação ao 'preco_mercado_medio' (se puder calcular) ou ao limite mais próximo.
-            Se um valor for null, mantenha-o como null no JSON.
+            Calcule a variação percentual entre 'preco_cotacao' e a média dos preços ('menor_preco' e 'maior_preco'), se ambos estiverem disponíveis.
+            Fórmula: ((preco_cotacao - media) / media) * 100
 
-            Exemplo do formato de saída (lista de objetos JSON):
-            [
-                {
-                    "material": "Cimento Portland CP II E-32",
-                    "preco_cotacao": 35.50,
-                    "maior_preco": 70.00,
-                    "menor_preco": 30.00,
-                    "variacao_porcentual": 0.0,
-                    "status": "Dentro do mercado"
-                },
-                {
-                    "material": "Areia Média",
-                    "preco_cotacao": 140.00,
-                    "maior_preco": 70.00,
-                    "menor_preco": 62.00,
-                    "variacao_porcentual": 100.0,
-                    "status": "Acima do mercado"
-                },
-                {
-                    "material": "Hidromassagem externa aquecimento elétrico piscina",
-                    "preco_cotacao": 14395.00,
-                    "maior_preco": null,
-                    "menor_preco": null,
-                    "variacao_porcentual": null,
-                    "status": "Pesquisa necessária"
-                }
-            ]
+            Retorne uma lista de objetos JSON, onde cada objeto representa um material analisado.
+            Cada objeto deve ter as chaves:
+            - "material" (string)
+            - "preco_cotacao" (float ou null)
+            - "maior_preco" (float ou null)
+            - "menor_preco" (float ou null)
+            - "variacao_porcentual" (float ou null)
+            - "status" (string)
+
             Forneça APENAS a lista de objetos JSON.
         """
     )
-    entrada = f"Dados dos materiais para análise: {text_content}\nData atual: {data_de_hoje}"
+    entrada = f"Analisar os seguintes dados: {text_content}\nData atual: {data_de_hoje}"
     return call_agent(analizador, entrada, user_id, session_id)
 
-
-# Modifique a função orquestrar_agentes para aceitar model_name
 def orquestrar_agentes(materiais: str, data_de_hoje: str, model_name: str):
     user_id = f"user-{uuid.uuid4()}"
     session_id = f"session-{uuid.uuid4()}"
