@@ -3,7 +3,6 @@ import pandas as pd
 import PyPDF2
 from io import BytesIO
 
-
 def extract_data_from_file(uploaded_file):
     """
     Extrai o conteúdo textual de arquivos XLSX ou PDF.
