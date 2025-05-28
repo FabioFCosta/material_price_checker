@@ -52,7 +52,7 @@ def show_login_screen(error_message=None):
 
     with col2:
         logo = Image.open("app_logo.png")
-        st.image(logo, width=200)
+        st.image(logo, width=300)
         st.title("Bem-vindo ao Material Price Checker")
         st.write("Faça login com sua conta Google para continuar.")
 
