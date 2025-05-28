@@ -60,8 +60,8 @@ def show_login_screen(error_message=None):
             st.warning("O arquivo 'app_logo.png' não foi encontrado. Usando um texto de placeholder.")
             st.markdown("<h1 style='text-align: center;'>Material Price Checker</h1>", unsafe_allow_html=True)
 
-        st.markdown("<p style='text-align: center;'>Faça login com sua conta Google para continuar.</p>", unsafe_allow_html=True)
-
+        st.title("Bem-vindo ao Material Price Checker")
+        st.write("Faça login com sua conta Google para continuar.")
 
         if error_message:
             st.error(error_message)
