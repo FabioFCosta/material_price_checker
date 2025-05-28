@@ -6,7 +6,8 @@ from utils import extract_data_from_file
 from agents import orquestrar_agentes
 from datetime import datetime
 from authlib.integrations.requests_client import OAuth2Session
-from urllib.parse import urlparse, parse_qs
+
+st.set_page_config(page_title="Material Price Checker", layout="wide")
 
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -46,8 +47,6 @@ def logout():
     st.query_params.clear()
 
 def show_login_screen(error_message=None):
-    st.set_page_config(page_title="Material Price Checker - Login", layout="centered")
-
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
@@ -71,8 +70,6 @@ def show_login_screen(error_message=None):
     st.stop()
 
 def main():
-    st.set_page_config(page_title="Material Price Checker", layout="wide")
-    
     query_params = st.query_params
     
     if "user_info" not in st.session_state:
