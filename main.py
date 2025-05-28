@@ -39,12 +39,11 @@ def get_user_info(token):
     return resp.json()
 
 def logout():
-    for key in ["user_info", "oauth_state_sent"]:
-        if key in st.session_state:
-            del st.session_state[key]
+    if "user_info" in st.session_state:
+        del st.session_state["user_info"]
+    if "oauth_state_sent" in st.session_state:
+        del st.session_state["oauth_state_sent"]
     st.query_params.clear()
-    st.rerun()
-
 
 def main():
     st.set_page_config(page_title="Material Price Checker", layout="wide")
