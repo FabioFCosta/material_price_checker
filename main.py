@@ -11,7 +11,7 @@ from urllib.parse import urlparse, parse_qs
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
     
-REDIRECT_URI = "https://material-price-checker.streamlit.app/"
+REDIRECT_URI = "https://material-price-checker.streamlit.app"
 
 AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -22,12 +22,10 @@ def get_authorization_url():
     client = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
                            scope="openid email profile", redirect_uri=REDIRECT_URI)
     uri, state = client.create_authorization_url(AUTHORIZATION_ENDPOINT)
-    # Store the state. Even if it gets lost sometimes, we'll try to recover from URL.
-    st.session_state['oauth_state_sent'] = state # Renamed for clarity
+    st.session_state['oauth_state_sent'] = state 
     return uri
 
 
-# Modified fetch_token to accept 'state_from_google_redirect'
 def fetch_token(code, state_from_google_redirect):
     client = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
                            redirect_uri=REDIRECT_URI, state=state_from_google_redirect)
