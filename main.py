@@ -38,6 +38,13 @@ def get_user_info(token):
     resp = client.get(USERINFO_ENDPOINT)
     return resp.json()
 
+def logout():
+    for key in ["user_info", "oauth_state_sent"]:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.query_params.clear()
+    st.rerun()
+
 
 def main():
     st.set_page_config(page_title="Material Price Checker", layout="wide")
@@ -83,6 +90,8 @@ def main():
 
     user_info = st.session_state["user_info"]
     st.success(f"Bem-vindo(a) {user_info['name']} ({user_info['email']})")
+
+    st.sidebar.button("Sair (Logout)", on_click=logout)
 
     google_api_key = os.getenv("GOOGLE_API_KEY")
     if not google_api_key:
