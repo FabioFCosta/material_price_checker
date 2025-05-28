@@ -45,6 +45,31 @@ def logout():
         del st.session_state["oauth_state_sent"]
     st.query_params.clear()
 
+def show_login_screen(error_message=None):
+    st.set_page_config(page_title="Material Price Checker - Login", layout="centered")
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
+        st.image("https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png", width=200) # Replace with your logo if you have one
+        st.title("Bem-vindo ao Material Price Checker")
+        st.write("Faça login com sua conta Google para continuar.")
+
+        if error_message:
+            st.error(error_message)
+            with st.expander("Ver detalhes do erro"):
+                st.write(f"Erro: {error_message}") 
+
+        auth_url = get_authorization_url()
+        
+        st.markdown(f'<a href="{auth_url}" target="_self" style="display: inline-block; padding: 10px 20px; background-color: #4285F4; color: white; text-align: center; text-decoration: none; border-radius: 5px; font-weight: bold;">Entrar com Google</a>', unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown(f"<p style='text-align: center; color: gray;'>Ao fazer login, você concorda com nossos Termos de Serviço.</p>", unsafe_allow_html=True)
+
+
+    st.stop()
+
 def main():
     st.set_page_config(page_title="Material Price Checker", layout="wide")
     
@@ -68,24 +93,12 @@ def main():
                         
                     st.rerun() 
                 except Exception as e:
-                    st.error(f"Erro ao fazer login. Por favor, tente novamente. Detalhes: {e}")
-                    st.session_state.pop("user_info", None)
-                    st.session_state.pop('oauth_state_sent', None)
-                    st.query_params.clear()
-                    st.markdown(f"[Login with Google]({get_authorization_url()})") 
-                    st.stop()
+                    show_login_screen(error_message=f"Erro ao fazer login. Por favor, tente novamente. Detalhes: {e}")
             else:
-                st.warning("Parâmetro 'state' ausente na URL de redirecionamento. Tentando fazer login novamente.")
-                st.session_state.pop("user_info", None)
-                st.session_state.pop('oauth_state_sent', None)
-                st.query_params.clear()
-                st.markdown(f"[Login with Google]({get_authorization_url()})")
-                st.stop()
+                show_login_screen(error_message="Parâmetro 'state' ausente na URL de redirecionamento. Tentando fazer login novamente.")
                 
         else:
-            auth_url = get_authorization_url()
-            st.markdown(f"[Login with Google]({auth_url})")
-            st.stop() 
+            show_login_screen()
 
     user_info = st.session_state["user_info"]
     st.success(f"Bem-vindo(a) {user_info['name']} ({user_info['email']})")
