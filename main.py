@@ -50,7 +50,7 @@ def show_login_screen(error_message=None):
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        st.image("https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png", width=200) # Replace with your logo if you have one
+        st.image("https://img.favpng.com/1/25/21/price-sales-management-service-market-png-favpng-cY5KtkLf2xnbKFMKadC25TJcJ.jpg", width=200) # Replace with your logo if you have one
         st.title("Bem-vindo ao Material Price Checker")
         st.write("Faça login com sua conta Google para continuar.")
 
