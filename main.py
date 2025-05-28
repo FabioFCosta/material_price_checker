@@ -48,28 +48,32 @@ def logout():
     st.query_params.clear()
 
 def show_login_screen(error_message=None):
+    """Displays the improved login screen."""
+    
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        logo = Image.open("app_logo.png")
-        st.image(logo, width=200)
-        st.title("Bem-vindo ao Material Price Checker")
-        st.write("Faça login com sua conta Google para continuar.")
+        try:
+            logo = Image.open("app_logo.png")
+            st.image(logo, width=200)
+        except FileNotFoundError:
+            st.warning("O arquivo 'app_logo.png' não foi encontrado. Usando um texto de placeholder.")
+            st.markdown("<h1 style='text-align: center;'>Material Price Checker</h1>", unsafe_allow_html=True)
+
+        st.markdown("<p style='text-align: center;'>Faça login com sua conta Google para continuar.</p>", unsafe_allow_html=True)
+
 
         if error_message:
             st.error(error_message)
-            with st.expander("Ver detalhes do erro"):
-                st.write(f"Erro: {error_message}") 
 
         auth_url = get_authorization_url()
         
-        st.markdown(f'<a href="{auth_url}" target="_self" style="display: inline-block; padding: 10px 20px; background-color: #4285F4; color: white; text-align: center; text-decoration: none; border-radius: 5px; font-weight: bold;">Entrar com Google</a>', unsafe_allow_html=True)
+        st.link_button("Entrar com Google", url=auth_url, help="Clique para fazer login com sua conta Google")
 
         st.markdown("---")
         st.markdown(f"<p style='text-align: center; color: gray;'>Ao fazer login, você concorda com nossos Termos de Serviço.</p>", unsafe_allow_html=True)
-
-
-    st.stop()
+    
+    return True 
 
 def main():
     query_params = st.query_params
@@ -92,12 +96,14 @@ def main():
                         
                     st.rerun() 
                 except Exception as e:
-                    show_login_screen(error_message=f"Erro ao fazer login. Por favor, tente novamente. Detalhes: {e}")
+                    if show_login_screen(error_message=f"Erro ao fazer login. Por favor, tente novamente. Detalhes: {e}"):
+                        st.stop()
             else:
-                show_login_screen(error_message="Parâmetro 'state' ausente na URL de redirecionamento. Tentando fazer login novamente.")
-                
+                if show_login_screen(error_message="Parâmetro 'state' ausente na URL de redirecionamento. Tentando fazer login novamente."):
+                    st.stop()
         else:
-            show_login_screen()
+            if show_login_screen():
+                st.stop()
 
     user_info = st.session_state["user_info"]
     st.success(f"Bem-vindo(a) {user_info['name']} ({user_info['email']})")
