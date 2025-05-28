@@ -56,23 +56,23 @@ def main():
                     user_info = get_user_info(token)
                     st.session_state["user_info"] = user_info
                     
-                    st.experimental_set_query_params()
+                    st.query_params.clear()
                     if 'oauth_state_sent' in st.session_state:
                         del st.session_state['oauth_state_sent']
                         
-                    st.experimental_rerun() 
+                    st.rerun() 
                 except Exception as e:
                     st.error(f"Erro ao fazer login. Por favor, tente novamente. Detalhes: {e}")
                     st.session_state.pop("user_info", None)
                     st.session_state.pop('oauth_state_sent', None)
-                    st.experimental_set_query_params() 
+                    st.query_params.clear()
                     st.markdown(f"[Login with Google]({get_authorization_url()})") 
                     st.stop()
             else:
                 st.warning("Parâmetro 'state' ausente na URL de redirecionamento. Tentando fazer login novamente.")
                 st.session_state.pop("user_info", None)
                 st.session_state.pop('oauth_state_sent', None)
-                st.experimental_set_query_params()
+                st.query_params.clear()
                 st.markdown(f"[Login with Google]({get_authorization_url()})")
                 st.stop()
                 
