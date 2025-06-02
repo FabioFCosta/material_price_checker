@@ -129,10 +129,14 @@ def main():
         )
         st.sidebar.info(f"Modelo selecionado: **{selected_model}**")
 
+        st.sidebar.header("⚙️ Configurações do Programa")
+
         material_type = st.sidebar.radio(
         "Selecione programa:",
         ["Construção", "Hospital"]
         )
+
+        st.sidebar.info(f"Programa selecionado: **{material_type}**")
 
         if material_type == 'Construção':
             construction_program(selected_model, google_api_key)
