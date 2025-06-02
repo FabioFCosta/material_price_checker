@@ -1,7 +1,41 @@
-# utils.py
+#common_modules.py
+
+import os
 import pandas as pd
 import PyPDF2
 from io import BytesIO
+
+from google.genai import types
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.adk.agents import Agent
+
+os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
+
+
+def call_agent(agent: Agent, message_text: str, user_id: str, session_id: str) -> str:
+    session_service = InMemorySessionService()
+    session = session_service.create_session(
+        app_name=agent.name,
+        user_id=user_id,
+        session_id=session_id
+    )
+    runner = Runner(agent=agent, app_name=agent.name,
+                    session_service=session_service)
+    content = types.Content(role="user", parts=[types.Part(text=message_text)])
+
+    final_response = ""
+    try:
+        for event in runner.run(user_id=user_id, session_id=session_id, new_message=content):
+            if event.is_final_response():
+                for part in event.content.parts:
+                    if part.text is not None:
+                        final_response += part.text + "\n"
+        return final_response
+    except Exception as e:
+        return f"Error processing agent {agent.name}: {str(e)}"
+    
+
 
 def extract_data_from_file(uploaded_file):
     """
