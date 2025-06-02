@@ -129,7 +129,7 @@ def main():
         )
         st.sidebar.info(f"Modelo selecionado: **{selected_model}**")
 
-        material_type = st.radio(
+        material_type = st.sidebar.radio(
         "Selecione programa:",
         ["Construção", "Hospital"]
         )
