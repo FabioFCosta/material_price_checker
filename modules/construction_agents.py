@@ -160,7 +160,7 @@ def analyze_material_prices(text_content: str, current_date: str, user_id: str, 
             - "highest_price" (float or null)
             - "lowest_price" (float or null)
             - "percentage_variation" (float or null)
-            - "status" (string)
+            - "status" (Within market, Above market, Below market or Research needed)
             - "lowest_price_links" (string Array)
 
             Remember: Output STRICTLY a valid JSON array. Do not include any additional commentary or explanations. No text outside JSON brackets.

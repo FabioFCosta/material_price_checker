@@ -52,7 +52,7 @@ def extract_data_from_text(text_content: str, current_date: str, user_id: str, s
                 `"Electric wires 2.5mm" ... "120.00 R$"` -> `{"material": "Electric wires 2.5mm", "unit_price": 120.00}`
 
             Carefully analyze the text to ensure all materials and their unit prices are accurately extracted.
-            Provide ONLY the list of JSON objects.
+            Remember: Output STRICTLY a valid JSON array. Do not include any additional commentary or explanations. No text outside JSON brackets.
         """
     )
     input_text = f"Document text for analysis: {text_content}\nCurrent date for context: {current_date}"
@@ -111,7 +111,7 @@ def search_market_price(text_content: str, current_date: str, user_id: str, sess
                 }
             ]
 
-            Provide ONLY the list of JSON objects.
+            Remember: Output STRICTLY a valid JSON array. Do not include any additional commentary or explanations. No text outside JSON brackets.
         """
     )
     input_text = f"Materials to search for market prices: {text_content}\nCurrent date: {current_date}"
@@ -157,10 +157,10 @@ def analyze_material_prices(text_content: str, current_date: str, user_id: str, 
             - "highest_price" (float or null)
             - "lowest_price" (float or null)
             - "percentage_variation" (float or null)
-            - "status" (string)
+            - "status" (Within market, Above market, Below market or Research needed)
             - "lowest_price_links" (string Array)
 
-            Provide ONLY the list of JSON objects.
+            Remember: Output STRICTLY a valid JSON array. Do not include any additional commentary or explanations. No text outside JSON brackets.
         """
     )
     input_text = f"Analyze the following data: {text_content}\nCurrent date: {current_date}"

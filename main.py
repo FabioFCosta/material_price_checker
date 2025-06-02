@@ -233,18 +233,18 @@ def construction_program(selected_model, google_api_key):
 
                 st.markdown("---")
 
-                flagged_materials_df = analysis_df[
-                    (analysis_df['status'] == "Acima do mercado") |
-                    (analysis_df['status'] == "Abaixo do mercado") |
-                    (analysis_df['status'] == "Pesquisa necessária")
-                ]
-
                 for _, row in analysis_df.iterrows():
                     links = set(row['lowest_price_links'] or [])
                     if links:
                         st.markdown(f"Menores preços para {row['material']}:")
                         for link in list(links):
                             st.info(link)
+
+                flagged_materials_df = analysis_df[
+                    (analysis_df['status'] == "Above market") |
+                    (analysis_df['status'] == "Below market") |
+                    (analysis_df['status'] == "Research needed")
+                ]                
 
                 if not flagged_materials_df.empty:
                     st.warning(
@@ -346,11 +346,18 @@ def hospital_program(selected_model, google_api_key):
 
                 st.markdown("---")
 
+                for _, row in analysis_df.iterrows():
+                    links = set(row['lowest_price_links'] or [])
+                    if links:
+                        st.markdown(f"Menores preços para {row['material']}:")
+                        for link in list(links):
+                            st.info(link)
+
                 flagged_materials_df = analysis_df[
-                    (analysis_df['status'] == "Acima do mercado") |
-                    (analysis_df['status'] == "Abaixo do mercado") |
-                    (analysis_df['status'] == "Pesquisa necessária")
-                ]
+                    (analysis_df['status'] == "Above market") |
+                    (analysis_df['status'] == "Below market") |
+                    (analysis_df['status'] == "Research needed")
+                ]  
 
                 if not flagged_materials_df.empty:
                     st.warning(
