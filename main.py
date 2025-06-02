@@ -220,7 +220,7 @@ def construction_program(selected_model, google_api_key):
                         color = '#FF8C00'
                     elif val == "Below market":
                         color = '#DC143C'
-                    elif val == "Within Market":
+                    elif val == "Within market":
                         color = '#3CB371'
                     elif val == "Research needed":
                         color = '#4682B4'
@@ -333,7 +333,7 @@ def hospital_program(selected_model, google_api_key):
                         color = '#FF8C00'
                     elif val == "Below market":
                         color = '#DC143C'
-                    elif val == "Within Market":
+                    elif val == "Within market":
                         color = '#3CB371'
                     elif val == "Research needed":
                         color = '#4682B4'

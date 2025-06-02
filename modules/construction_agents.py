@@ -4,7 +4,8 @@ from google.adk.agents import Agent
 from google.adk.tools import google_search
 from modules.common import call_agent
 
-def extract_data_from_text(text_content: str, current_date: str, user_id: str, session_id: str, model_name: str):
+
+def extract_data_from_text(text_content: str, user_id: str, session_id: str, model_name: str):
     extractor = Agent(
         name='extractor_agent',
         model=model_name,
@@ -12,7 +13,7 @@ def extract_data_from_text(text_content: str, current_date: str, user_id: str, s
         tools=[google_search],
         instruction="""
             You are a highly efficient and flexible data extraction assistant.
-            Your task is to carefully read the provided text and identify all construction materials or items related to projects (such as specific services, equipment, etc.) and their respective unit prices.
+            Your task is to carefully read the provided text and identify all construction materials or items related to projects (such as specific services, equipment, etc.) and their respective unit prices (always in BRL unit - R$).
 
             **Detailed extraction instructions:**
 
@@ -56,8 +57,90 @@ def extract_data_from_text(text_content: str, current_date: str, user_id: str, s
             Remember: Output STRICTLY a valid JSON array. Do not include any additional commentary or explanations. No text outside JSON brackets.
         """
     )
-    input_text = f"Document text for analysis: {text_content}\nCurrent date for context: {current_date}"
+    input_text = f"Document text for analysis: {text_content}"
     output = call_agent(extractor, input_text, user_id, session_id)
+
+    return output
+
+
+def validate_extracted_data(text_content: str, extracted_json: str, user_id: str, session_id: str, model_name: str):
+    validator = Agent(
+        name='validate_extraction_agent',
+        model=model_name,
+        description='Agent that validates if the extracted materials and unit prices are accurate based on the provided text.',
+        tools=[google_search],
+        instruction="""
+            You are a rigorous data validation assistant.
+
+            Your task is to analyze whether the extracted materials and their unit prices accurately reflect the content of the provided document text.
+
+            **Validation Rules:**
+            1. Check if all materials and their unit prices present in the document are included in the extracted JSON list.
+            2. Check if any item in the extracted JSON does NOT actually exist in the document text (i.e., hallucinated data).
+            3. DO NOT invent or assume data. Only consider exact matches from the text content.
+
+            **Output Format:**
+            Return a JSON object with:
+            - "missing_items": a list of materials (strings) that were present in the document but missing in the extracted JSON.
+            - "hallucinated_items": a list of materials (strings) that are in the extracted JSON but do not exist in the document.
+            - "status": one of the following:
+                * "Valid extraction": if no missing or hallucinated items are found.
+                * "Missing items": if there are missing items.
+                * "Hallucinated items": if there are hallucinated items.
+                * "Missing and hallucinated items": if both problems are present.
+
+            **Example Output:**
+            {
+                "missing_items": ["Jacuzzi Filtration Set", "LED Monochromatic Reflectors"],
+                "hallucinated_items": [],
+                "status": "Missing items"
+            }
+
+            VERY IMPORTANT: Return ONLY the JSON object. No explanations, comments, or text outside the JSON.
+        """
+    )
+    input_text = f"""
+    Document text content:
+    {text_content}
+
+    \nExtracted JSON:
+    {extracted_json}
+
+    """
+    output = call_agent(validator, input_text, user_id, session_id)
+
+    return output
+
+
+def find_missing_items(text_content: str, extracted_json: str, user_id: str, session_id: str, model_name: str):
+    finder = Agent(
+        name='find_missing_items_agent',
+        model=model_name,
+        description='Agent that find missing items from the extracted data.',
+        tools=[google_search],
+        instruction="""
+            You are an expert assistant in text analysis.
+
+            Your task is to carefully read the provided document and check whether there are any materials or items with unit prices that were NOT included in the following extracted list.
+
+            - Input 1: Full document text.
+            - Input 2: List of extracted items (materials + unit_price).
+
+            Output:
+            A JSON array containing ONLY the items that were missed.
+
+            If no items were missed, return an empty JSON array ([]).
+            VERY IMPORTANT: Return ONLY the JSON object. No explanations, comments, or text outside the JSON.
+        """
+    )
+    input_text = f"""
+    Document text content:
+    {text_content}
+
+    \nExtracted JSON:
+    {extracted_json}
+    """
+    output = call_agent(finder, input_text, user_id, session_id)
 
     return output
 
@@ -69,15 +152,15 @@ def search_market_price(text_content: str, current_date: str, user_id: str, sess
         description='Agent that searches the price range of materials.',
         tools=[google_search],
         instruction="""
-            You are an expert in procurement and price quotation for construction materials in Brazil.
+            You are an expert in procurement and price quotation for construction materials in Brazil (Price in BRL - R$).
             Analyze the provided materials and, using the google-search tool, indicate the average current price range (considering today’s date) for each material found.
             
             The input will be a list of JSON objects with 'material' and 'unit_price'.
             The output should be a list of JSON objects, including:
             - 'material'
-            - 'quoted_price' (the original unit_price)
-            - 'highest_price' found
-            - 'lowest_price' found
+            - 'quoted_price' (the original unit_price in R$)
+            - 'highest_price' found in R$
+            - 'lowest_price' found in R$
             - 'lowest_price_links' maximum of 5 found links with lowest prices.
 
             If a value is not found, return it with null in the corresponding field (highest_price or lowest_price).
@@ -172,15 +255,48 @@ def analyze_material_prices(text_content: str, current_date: str, user_id: str, 
     return output
 
 
-def construction_agents_team(materiais: str, data_de_hoje: str, model_name: str):
+def robust_extraction_pipeline(text_content: str, user_id: str, session_id: str, model_name: str):
+    extraction = extract_data_from_text(
+        text_content, user_id, session_id, model_name)
+
+    validation = validate_extracted_data(
+        extraction, text_content, user_id, session_id, model_name)
+
+    hallucinated_items = [item for item in validation if not item['valid']]
+
+    if hallucinated_items:
+        extraction = extract_data_from_text(
+            text_content, user_id, session_id, model_name)
+    else:
+        missing = find_missing_items(
+            extraction, text_content, user_id, session_id, model_name)
+        if missing:
+            extraction = merge_items(extraction, missing)
+
+    return extraction
+
+
+def construction_agents_team(materials: str, current_date: str, model_name: str):
     user_id = f"user-{uuid.uuid4()}"
     session_id = f"session-{uuid.uuid4()}"
 
-    extracao = extract_data_from_text(
-        materiais, data_de_hoje, user_id, session_id, model_name)
+    extracao = robust_extraction_pipeline(
+        materials, user_id, session_id, model_name)
     busca = search_market_price(
-        extracao, data_de_hoje, user_id, session_id, model_name)
+        extracao, current_date, user_id, session_id, model_name)
     analise_json_string = analyze_material_prices(
-        busca, data_de_hoje, user_id, session_id, model_name)
+        busca, current_date, user_id, session_id, model_name)
 
     return {"analise_json": analise_json_string}
+
+
+def merge_items(existing_items: list, new_items: list):
+    existing_materials = {item['material'].lower().strip()
+                          for item in existing_items}
+    merged = existing_items.copy()
+
+    for item in new_items:
+        if item['material'].lower().strip() not in existing_materials:
+            merged.append(item)
+
+    return merged
