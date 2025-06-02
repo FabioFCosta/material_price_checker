@@ -240,10 +240,11 @@ def construction_program(selected_model, google_api_key):
                 ]
 
                 for _, row in analysis_df.iterrows():
-                    st.markdown(row['material'])
-                    links = row['lowest_price_links']
-                    for link in links:
-                        st.info(link)
+                    links = set(row['lowest_price_links'] or [])
+                    if links:
+                        st.markdown(f"Menores preços para {row['material']}:")
+                        for link in list(links):
+                            st.info(link)
 
                 if not flagged_materials_df.empty:
                     st.warning(
