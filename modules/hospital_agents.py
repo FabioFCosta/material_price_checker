@@ -12,7 +12,7 @@ def extract_data_from_text(text_content: str, current_date: str, user_id: str, s
         tools=[google_search],
         instruction="""
             You are a highly efficient and flexible data extraction assistant.
-            Your task is to carefully read the provided text and identify all hospital materials or items related to projects (such as specific services, equipment, etc.) and their respective unit prices.
+            Your task is to carefully read the provided text and identify all hospital materials or items related (such as specific services, equipment, etc.) and their respective unit prices.
 
             **Detailed extraction instructions:**
 
@@ -24,14 +24,14 @@ def extract_data_from_text(text_content: str, current_date: str, user_id: str, s
             2. **Price Identification:**
                 * The unit price will always be in monetary format (e.g., "R$ 5.120,00", "5.795,00 R$", "R$ 7.900,00").
                 * Ignore total values ("Total Value" in tables) if the "Unit Value" is available. If only the total is presented and it is clear it refers to a single unit, you can consider it as the "unit_price".
-                * If an item is listed without a clear unit price, the 'unit_price' must be `null`.
+                * If an item is listed without a clear unit price, the 'unit_price' must be `0`.
                 * Also consider "Unit Price" columns in tables.
 
             3. **MANDATORY Output Format:**
                 * The output must be a **list of JSON objects**.
                 * Each JSON object must contain **EXACTLY** two keys:
                     * `"material"` (string): The full and descriptive name of the material or item. Remove list numbers, bullets, or irrelevant prefixes.
-                    * `"unit_price"` (float or null): The numerical unit price. Remove currency symbols (R$), thousand separators (.), and use a dot as the decimal separator. If the price is not found, use `null`.
+                    * `"unit_price"` (float): The numerical unit price. Remove currency symbols (R$), thousand separators (.), and use a dot as the decimal separator. If the price is not found, use `0`.
 
             **Examples of handling different formats:**
 
@@ -75,6 +75,7 @@ def search_market_price(text_content: str, current_date: str, user_id: str, sess
             - 'quoted_price' (the original unit_price)
             - 'highest_price' found
             - 'lowest_price' found
+            - 'lowest_price_links' maximum of 5 found links with lowest prices.
 
             If a value is not found, return it with null in the corresponding field (highest_price or lowest_price).
 
@@ -84,25 +85,29 @@ def search_market_price(text_content: str, current_date: str, user_id: str, sess
                     "material": "Portland Cement CP II E-32",
                     "quoted_price": 35.50,
                     "highest_price": 70.00,
-                    "lowest_price": 30.00
+                    "lowest_price": 30.00,
+                    "lowest_price_links": ["link1","link2"]
                 },
                 {
                     "material": "Medium Sand",
                     "quoted_price": 80.00,
                     "highest_price": 70.00,
-                    "lowest_price": 62.00
+                    "lowest_price": 62.00,
+                    "lowest_price_links": ["link1","link2", "link3"]
                 },
                 {
                     "material": "Ceramic Brick 8 holes",
                     "quoted_price": 1.20,
                     "highest_price": 4.00,
-                    "lowest_price": 1.00
+                    "lowest_price": 1.00,
+                    "lowest_price_links": ["link1","link2", "link3", "link4", "link5"]
                 },
                 {
                     "material": "Recalque Pump",
                     "quoted_price": 19860.00,
                     "highest_price": null,
-                    "lowest_price": null
+                    "lowest_price": null,
+                    "lowest_price_links": null
                 }
             ]
 
@@ -130,6 +135,7 @@ def analyze_material_prices(text_content: str, current_date: str, user_id: str, 
             - 'quoted_price'
             - 'highest_price'
             - 'lowest_price'
+            - 'lowest_price_links'
 
             Compare 'quoted_price' with the price range ('lowest_price' and 'highest_price').
 
@@ -147,11 +153,12 @@ def analyze_material_prices(text_content: str, current_date: str, user_id: str, 
 
             Return a list of JSON objects, each representing an analyzed material, with the keys:
             - "material" (string)
-            - "quoted_price" (float or null)
+            - "quoted_price" (float)
             - "highest_price" (float or null)
             - "lowest_price" (float or null)
             - "percentage_variation" (float or null)
             - "status" (string)
+            - "lowest_price_links" (string Array)
 
             Provide ONLY the list of JSON objects.
         """
@@ -160,12 +167,12 @@ def analyze_material_prices(text_content: str, current_date: str, user_id: str, 
     return call_agent(analyzer, input_text, user_id, session_id)
 
 
-def hospital_agents_team(materiais: str, data_de_hoje: str, model_name: str):
+def hospital_agents_team(materials: str, today_date: str, model_name: str):
     user_id = f"user-{uuid.uuid4()}"
     session_id = f"session-{uuid.uuid4()}"
 
-    extracao = extract_data_from_text(materiais, data_de_hoje, user_id, session_id, model_name)
-    busca = search_market_price(extracao, data_de_hoje, user_id, session_id, model_name)
-    analise_json_string = analyze_material_prices(busca, data_de_hoje, user_id, session_id, model_name)
+    extracao = extract_data_from_text(materials, today_date, user_id, session_id, model_name)
+    busca = search_market_price(extracao, today_date, user_id, session_id, model_name)
+    analise_json_string = analyze_material_prices(busca, today_date, user_id, session_id, model_name)
 
     return {"analise_json": analise_json_string}

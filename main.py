@@ -161,14 +161,14 @@ def construction_program(selected_model, google_api_key):
         else:
             st.success("Texto extraído com sucesso. Iniciando análise de preços...")
 
-            data_de_hoje = datetime.now().strftime("%d/%m/%Y")
+            today_date = datetime.now().strftime("%d/%m/%Y")
 
             analysis_df = pd.DataFrame()
 
             with st.spinner(f"Analisando materiais e pesquisando preços de mercado com {selected_model}..."):
                 try:
                     result = construction_agents_team(
-                        raw_text_content, data_de_hoje, selected_model)
+                        raw_text_content, today_date, selected_model)
                     json_string_analysis = result.get("analise_json")
 
                     if json_string_analysis:
@@ -263,14 +263,14 @@ def hospital_program(selected_model, google_api_key):
         else:
             st.success("Texto extraído com sucesso. Iniciando análise de preços...")
 
-            data_de_hoje = datetime.now().strftime("%d/%m/%Y")
+            today_date = datetime.now().strftime("%d/%m/%Y")
 
             analysis_df = pd.DataFrame()
 
             with st.spinner(f"Analisando materiais e pesquisando preços de mercado com {selected_model}..."):
                 try:
                     result = hospital_agents_team(
-                        raw_text_content, data_de_hoje, selected_model)
+                        raw_text_content, today_date, selected_model)
                     json_string_analysis = result.get("analise_json")
 
                     if json_string_analysis:
