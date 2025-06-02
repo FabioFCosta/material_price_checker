@@ -52,6 +52,7 @@ def extract_data_from_text(text_content: str, current_date: str, user_id: str, s
                 `"Electric wires 2.5mm" ... "120.00 R$"` -> `{"material": "Electric wires 2.5mm", "unit_price": 120.00}`
 
             Carefully analyze the text to ensure all materials and their unit prices are accurately extracted.
+            VERY IMPORTANT: DO NOT CREATE DATA, ONLY USE THE DOCUMENT TEXT FOR ANALYSIS!
             Remember: Output STRICTLY a valid JSON array. Do not include any additional commentary or explanations. No text outside JSON brackets.
         """
     )
