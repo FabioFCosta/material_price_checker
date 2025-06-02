@@ -56,7 +56,7 @@ def show_login_screen(error_message=None):
 
     with col2:
         try:
-            logo = Image.open("app_logo.png")
+            logo = Image.open("assets/app_logo.png")
             st.image(logo, width=200)
         except FileNotFoundError:
             st.warning("O arquivo 'app_logo.png' não foi encontrado. Usando um texto de placeholder.")
