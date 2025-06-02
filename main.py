@@ -1,4 +1,4 @@
-#main.py
+# main.py
 import os
 from PIL import Image
 import streamlit as st
@@ -14,7 +14,7 @@ st.set_page_config(page_title="Material Price Checker", layout="wide")
 
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-    
+
 REDIRECT_URI = "https://material-price-checker.streamlit.app"
 
 AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -26,7 +26,7 @@ def get_authorization_url():
     client = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
                            scope="openid email profile", redirect_uri=REDIRECT_URI)
     uri, state = client.create_authorization_url(AUTHORIZATION_ENDPOINT)
-    st.session_state['oauth_state_sent'] = state 
+    st.session_state['oauth_state_sent'] = state
     return uri
 
 
@@ -42,6 +42,7 @@ def get_user_info(token):
     resp = client.get(USERINFO_ENDPOINT)
     return resp.json()
 
+
 def logout():
     if "user_info" in st.session_state:
         del st.session_state["user_info"]
@@ -49,9 +50,10 @@ def logout():
         del st.session_state["oauth_state_sent"]
     st.query_params.clear()
 
+
 def show_login_screen(error_message=None):
     """Displays the improved login screen."""
-    
+
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
@@ -59,8 +61,10 @@ def show_login_screen(error_message=None):
             logo = Image.open("assets/app_logo.png")
             st.image(logo, width=200)
         except FileNotFoundError:
-            st.warning("O arquivo 'app_logo.png' não foi encontrado. Usando um texto de placeholder.")
-            st.markdown("<h1 style='text-align: center;'>Material Price Checker</h1>", unsafe_allow_html=True)
+            st.warning(
+                "O arquivo 'app_logo.png' não foi encontrado. Usando um texto de placeholder.")
+            st.markdown(
+                "<h1 style='text-align: center;'>Material Price Checker</h1>", unsafe_allow_html=True)
 
         st.title("Bem-vindo ao Material Price Checker")
         st.write("Faça login com sua conta Google para continuar.")
@@ -69,34 +73,37 @@ def show_login_screen(error_message=None):
             st.error(error_message)
 
         auth_url = get_authorization_url()
-        
-        st.link_button("Entrar com Google", url=auth_url, help="Clique para fazer login com sua conta Google")
+
+        st.link_button("Entrar com Google", url=auth_url,
+                       help="Clique para fazer login com sua conta Google")
 
         st.markdown("---")
-        st.markdown(f"<p style='text-align: center; color: gray;'>Ao fazer login, você concorda com nossos Termos de Serviço.</p>", unsafe_allow_html=True)
-    
-    return True 
+        st.markdown(
+            f"<p style='text-align: center; color: gray;'>Ao fazer login, você concorda com nossos Termos de Serviço.</p>", unsafe_allow_html=True)
+
+    return True
+
 
 def main():
     query_params = st.query_params
-    
+
     if "user_info" not in st.session_state:
         if "code" in query_params:
             auth_code = query_params["code"]
             state_from_google = query_params.get("state")
             original_state_sent = st.session_state.get('oauth_state_sent')
 
-            if state_from_google: 
+            if state_from_google:
                 try:
                     token = fetch_token(auth_code, state_from_google)
                     user_info = get_user_info(token)
                     st.session_state["user_info"] = user_info
-                    
+
                     st.query_params.clear()
                     if 'oauth_state_sent' in st.session_state:
                         del st.session_state['oauth_state_sent']
-                        
-                    st.rerun() 
+
+                    st.rerun()
                 except Exception as e:
                     if show_login_screen(error_message=f"Erro ao fazer login. Por favor, tente novamente. Detalhes: {e}"):
                         st.stop()
@@ -114,7 +121,8 @@ def main():
 
     google_api_key = os.getenv("GOOGLE_API_KEY")
     if not google_api_key:
-        st.sidebar.error('Ocorreu algum erro ao registrar a CHAVE da API do GOOGLE.')
+        st.sidebar.error(
+            'Ocorreu algum erro ao registrar a CHAVE da API do GOOGLE.')
     else:
         st.sidebar.header("⚙️ Configurações do Modelo")
         gemini_models = [
@@ -125,15 +133,15 @@ def main():
         selected_model = st.sidebar.selectbox(
             "Selecione o Modelo Gemini:",
             gemini_models,
-            index=gemini_models.index("gemini-2.0-flash") 
+            index=gemini_models.index("gemini-2.0-flash")
         )
         st.sidebar.info(f"Modelo selecionado: **{selected_model}**")
 
         st.sidebar.header("⚙️ Configurações do Programa")
 
         material_type = st.sidebar.radio(
-        "Selecione programa:",
-        ["Construção", "Hospital"]
+            "Selecione programa:",
+            ["Construção", "Hospital"]
         )
 
         st.sidebar.info(f"Programa selecionado: **{material_type}**")
@@ -143,7 +151,7 @@ def main():
         else:
             hospital_program(selected_model, google_api_key)
 
-    
+
 def construction_program(selected_model, google_api_key):
     st.title("🏗️ Material Price Checker")
     st.write("Envie um arquivo PDF ou XLSX com orçamento de materiais de construção para verificar possíveis preços inconsistentes.")
@@ -159,7 +167,8 @@ def construction_program(selected_model, google_api_key):
             st.error(
                 "Não foi possível extrair texto do arquivo. Por favor, verifique o formato ou o conteúdo.")
         else:
-            st.success("Texto extraído com sucesso. Iniciando análise de preços...")
+            st.success(
+                "Texto extraído com sucesso. Iniciando análise de preços...")
 
             today_date = datetime.now().strftime("%d/%m/%Y")
 
@@ -191,7 +200,8 @@ def construction_program(selected_model, google_api_key):
                 st.subheader("📊 Resumo da Análise de Preços")
 
                 status_counts = analysis_df['status'].value_counts()
-                st.write(f"Total de materiais analisados: **{len(analysis_df)}**")
+                st.write(
+                    f"Total de materiais analisados: **{len(analysis_df)}**")
                 for status, count in status_counts.items():
                     if status == "Dentro do mercado":
                         st.success(f"**{status}**: {count} materiais")
@@ -229,6 +239,12 @@ def construction_program(selected_model, google_api_key):
                     (analysis_df['status'] == "Pesquisa necessária")
                 ]
 
+                for _, row in analysis_df.iterrows():
+                    st.markdown(row['material'])
+                    links = row['lowest_price_links']
+                    for link in links:
+                        st.info(link)
+
                 if not flagged_materials_df.empty:
                     st.warning(
                         "⚠️ **Materiais com Potenciais Inconsistências ou que Requerem Pesquisa:**")
@@ -237,14 +253,16 @@ def construction_program(selected_model, google_api_key):
                 else:
                     st.success(
                         "🎉 Nenhum material encontrado com preço fora da faixa ou que precise de pesquisa adicional.")
-                
+
                 st.write("📥 Baixar o resultado da análise:")
-                link = generate_download_link(df=analysis_df, fileName= "resultado_analise.csv")
-                st.markdown(link,unsafe_allow_html=True)
+                link = generate_download_link(
+                    df=analysis_df, fileName="resultado_analise.csv")
+                st.markdown(link, unsafe_allow_html=True)
 
             else:
                 st.info(
                     "Nenhum dado de material foi processado para análise. Por favor, verifique a saída dos agentes.")
+
 
 def hospital_program(selected_model, google_api_key):
     st.title("📦 Hospital Material Checker")
@@ -261,7 +279,8 @@ def hospital_program(selected_model, google_api_key):
             st.error(
                 "Não foi possível extrair texto do arquivo. Por favor, verifique o formato ou o conteúdo.")
         else:
-            st.success("Texto extraído com sucesso. Iniciando análise de preços...")
+            st.success(
+                "Texto extraído com sucesso. Iniciando análise de preços...")
 
             today_date = datetime.now().strftime("%d/%m/%Y")
 
@@ -293,7 +312,8 @@ def hospital_program(selected_model, google_api_key):
                 st.subheader("📊 Resumo da Análise de Preços")
 
                 status_counts = analysis_df['status'].value_counts()
-                st.write(f"Total de materiais analisados: **{len(analysis_df)}**")
+                st.write(
+                    f"Total de materiais analisados: **{len(analysis_df)}**")
                 for status, count in status_counts.items():
                     if status == "Dentro do mercado":
                         st.success(f"**{status}**: {count} materiais")
@@ -340,8 +360,9 @@ def hospital_program(selected_model, google_api_key):
                     st.success(
                         "🎉 Nenhum material encontrado com preço fora da faixa ou que precise de pesquisa adicional.")
                 st.write("📥 Baixar o resultado da análise:")
-                link = generate_download_link(df=analysis_df, fileName= "resultado_analise.csv")
-                st.markdown(link,unsafe_allow_html=True)
+                link = generate_download_link(
+                    df=analysis_df, fileName="resultado_analise.csv")
+                st.markdown(link, unsafe_allow_html=True)
             else:
                 st.info(
                     "Nenhum dado de material foi processado para análise. Por favor, verifique a saída dos agentes.")
