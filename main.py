@@ -216,13 +216,13 @@ def construction_program(selected_model, google_api_key):
                 st.subheader("Detalhes da Análise")
 
                 def color_status(val):
-                    if val == "Acima do mercado":
+                    if val == "Above market":
                         color = '#FF8C00'
-                    elif val == "Abaixo do mercado":
+                    elif val == "Below market":
                         color = '#DC143C'
-                    elif val == "Dentro do mercado":
+                    elif val == "Within Market":
                         color = '#3CB371'
-                    elif val == "Pesquisa necessária":
+                    elif val == "Research needed":
                         color = '#4682B4'
                     else:
                         color = ''
@@ -329,13 +329,13 @@ def hospital_program(selected_model, google_api_key):
                 st.subheader("Detalhes da Análise")
 
                 def color_status(val):
-                    if val == "Acima do mercado":
+                    if val == "Above market":
                         color = '#FF8C00'
-                    elif val == "Abaixo do mercado":
+                    elif val == "Below market":
                         color = '#DC143C'
-                    elif val == "Dentro do mercado":
+                    elif val == "Within Market":
                         color = '#3CB371'
-                    elif val == "Pesquisa necessária":
+                    elif val == "Research needed":
                         color = '#4682B4'
                     else:
                         color = ''
