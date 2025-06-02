@@ -4,7 +4,7 @@ from PIL import Image
 import streamlit as st
 import pandas as pd
 import json
-from modules.common import extract_data_from_file
+from modules.common import extract_data_from_file, generate_download_link
 from modules.construction_agents import construction_agents_team
 from modules.hospital_agents import hospital_agents_team
 from datetime import datetime
@@ -233,6 +233,11 @@ def construction_program(selected_model, google_api_key):
                 else:
                     st.success(
                         "🎉 Nenhum material encontrado com preço fora da faixa ou que precise de pesquisa adicional.")
+                
+                st.write("📥 Baixar o resultado da análise:")
+                link = generate_download_link(df=analysis_df, fileName= "resultado_analise.csv")
+                st.markdown(link,unsafe_allow_html=True)
+
             else:
                 st.info(
                     "Nenhum dado de material foi processado para análise. Por favor, verifique a saída dos agentes.")
@@ -330,6 +335,9 @@ def hospital_program(selected_model, google_api_key):
                 else:
                     st.success(
                         "🎉 Nenhum material encontrado com preço fora da faixa ou que precise de pesquisa adicional.")
+                st.write("📥 Baixar o resultado da análise:")
+                link = generate_download_link(df=analysis_df, fileName= "resultado_analise.csv")
+                st.markdown(link,unsafe_allow_html=True)
             else:
                 st.info(
                     "Nenhum dado de material foi processado para análise. Por favor, verifique a saída dos agentes.")

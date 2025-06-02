@@ -4,6 +4,8 @@ import os
 import pandas as pd
 import PyPDF2
 from io import BytesIO
+import base64
+import pandas as pd
 
 from google.genai import types
 from google.adk.runners import Runner
@@ -76,3 +78,20 @@ def _extract_text_from_xlsx(xlsx_file):
         print(f"Erro ao extrair texto do XLSX com pandas: {e}")
 
         return ""
+
+def generate_download_link(df: pd.DataFrame, filename: str = "data.csv") -> str:
+    """
+    Generates a link to download the given dataframe as a CSV file.
+
+    Parameters:
+    - df (pd.DataFrame): The dataframe to download.
+    - filename (str): The name of the CSV file.
+
+    Returns:
+    - str: HTML anchor tag as a string for the download link.
+    """
+    csv = df.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+
+    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">📥 Download CSV</a>'
+    return href
