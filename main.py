@@ -159,7 +159,7 @@ def construction_program(selected_model, google_api_key):
     if option == 'Análise de cotação':
         st.write("Envie um arquivo PDF ou XLSX com orçamento de materiais de construção para verificar possíveis preços inconsistentes.")
         uploaded_file = st.file_uploader(
-            "Faça upload do arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"], disabled=not google_api_key)
+            "Faça upload do arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"], disabled=not google_api_key, help="O arquivo .pdf deve ser um pdf editável (como PDFs gerados por Word).")
 
         if st.button(label='Iniciar análise', disabled=uploaded_file is None):
             with st.spinner("Extraindo dados do arquivo..."):
