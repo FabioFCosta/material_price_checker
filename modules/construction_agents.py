@@ -404,7 +404,6 @@ def quoting_material_agents_team(material: str, current_date: str, model_name: s
     prices = process_prices(response['research_results'])
     response['highest_price'] = prices['highest_price']
     response['lowest_price'] = prices['lowest_price']
-    print(response)
 
     return response
 
