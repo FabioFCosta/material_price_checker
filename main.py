@@ -130,20 +130,17 @@ def main():
             "gemini-2.0-flash"
         ]
         selected_model = st.sidebar.selectbox(
-            "Selecione o Modelo Gemini:",
+            "Selecione o Modelo:",
             gemini_models,
             index=gemini_models.index("gemini-2.0-flash")
         )
-        st.sidebar.info(f"Modelo selecionado: **{selected_model}**")
 
         st.sidebar.header("⚙️ Configurações do Programa")
 
         material_type = st.sidebar.radio(
-            "Selecione programa:",
+            "Selecione o programa:",
             ["Construção", "Hospital"]
         )
-
-        st.sidebar.info(f"Programa selecionado: **{material_type}**")
 
         if material_type == 'Construção':
             construction_program(selected_model, google_api_key)
@@ -157,8 +154,8 @@ def construction_program(selected_model, google_api_key):
 
     uploaded_file = st.file_uploader(
         "Faça upload do arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"], disabled=not google_api_key)
-
-    if uploaded_file:
+    
+    if st.button(label='Iniciar análise', disabled=uploaded_file is None):
         with st.spinner("Extraindo dados do arquivo..."):
             raw_text_content = extract_data_from_file(uploaded_file)
 
@@ -243,7 +240,7 @@ def construction_program(selected_model, google_api_key):
                     (analysis_df['status'] == "Above market") |
                     (analysis_df['status'] == "Below market") |
                     (analysis_df['status'] == "Research needed")
-                ]                
+                ]
 
                 if not flagged_materials_df.empty:
                     st.warning(
@@ -356,7 +353,7 @@ def hospital_program(selected_model, google_api_key):
                     (analysis_df['status'] == "Above market") |
                     (analysis_df['status'] == "Below market") |
                     (analysis_df['status'] == "Research needed")
-                ]  
+                ]
 
                 if not flagged_materials_df.empty:
                     st.warning(

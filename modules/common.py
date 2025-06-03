@@ -1,6 +1,7 @@
 #common_modules.py
-
+import json
 import os
+import re
 import pandas as pd
 import PyPDF2
 from io import BytesIO
@@ -95,3 +96,19 @@ def generate_download_link(df: pd.DataFrame, fileName: str = "data.csv") -> str:
 
     href = f'<a href="data:file/csv;base64,{b64}" download="{fileName}">📥 Download CSV</a>'
     return href
+
+def json_from_LLM_response(llm_response: str):
+    """
+    Extracts JSON from an LLM response that may be surrounded by markdown syntax.
+    """
+    match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', llm_response, re.DOTALL)
+
+    if match:
+        json_str = match.group(1)
+    else:
+        json_str = llm_response.strip()
+
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON from LLM response: {e}\nResponse: {llm_response}")

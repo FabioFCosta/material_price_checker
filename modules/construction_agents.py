@@ -1,10 +1,8 @@
 # agents.py
 import uuid
-import json
 from google.adk.agents import Agent
 from google.adk.tools import google_search
-from modules.common import call_agent
-
+from modules.common import call_agent, json_from_LLM_response
 
 def extract_data_from_text(text_content: str, user_id: str, session_id: str, model_name: str):
     extractor = Agent(
@@ -82,8 +80,8 @@ def validate_extracted_data(text_content: str, extracted_json: str, user_id: str
 
             **Output Format:**
             Return a JSON object with:
-            - "missing_items": a list of materials (strings) that were present in the document but missing in the extracted JSON.
-            - "hallucinated_items": a list of materials (strings) that are in the extracted JSON but do not exist in the document.
+            - "missing_items": a list of materials (strings) that were present in the document but missing in the extracted JSON (or its price was present but missing in JSON).
+            - "hallucinated_items": a list of materials (strings) that are in the extracted JSON but do not exist in the document (or their price in JSON is not the same in the document).
             
             **Example Output:**
             {
@@ -254,29 +252,36 @@ def analyze_material_prices(text_content: str, current_date: str, user_id: str, 
 
 
 def robust_extraction_pipeline(text_content: str, user_id: str, session_id: str, model_name: str):
+    MAX_ITERATIONS = 3
+    iterations = 0
 
     extraction = extract_data_from_text(
-        text_content, user_id, session_id, model_name)
-
-    validation = validate_extracted_data(
-        text_content, extraction, user_id, session_id, model_name)
-
-    cleaned_json_string = validation.strip().replace(
-        "```json\n", "").replace("\n```", "")
-    validation_data = json.loads(cleaned_json_string)
-
-    hallucinated_items = validation_data.get('hallucinated_items', [])
-    missing_items = validation_data.get('missing_items', [])
-
-    if hallucinated_items:
-        extraction = extract_data_from_text(
             text_content, user_id, session_id, model_name)
+    
+    while iterations < MAX_ITERATIONS: 
+        validation = validate_extracted_data(
+            text_content, extraction, user_id, session_id, model_name)
+        
+        validation_data = json_from_LLM_response(validation)
 
-    if missing_items:
-        missing = find_missing_items(
-            text_content, missing_items, user_id, session_id, model_name)
-        if missing:
-            extraction = merge_items(extraction, missing)
+        hallucinated_items = validation_data.get('hallucinated_items', [])
+        missing_items = validation_data.get('missing_items', [])
+
+        if hallucinated_items:
+            extraction = [item for item in extraction if item['material'] not in hallucinated_items]
+
+        if missing_items:
+            missing = find_missing_items(
+                text_content, missing_items, user_id, session_id, model_name)
+            if missing:
+                extraction = merge_items(extraction, missing)
+        
+        if not hallucinated_items and not missing_items:
+            break
+
+        iterations += 1 
+    else: 
+        raise Exception("Número máximo de tentativas de extração alcançado. A extração de dados pode estar incompleta.")
 
     return extraction
 
@@ -286,7 +291,7 @@ def construction_agents_team(materials: str, current_date: str, model_name: str)
     session_id = f"session-{uuid.uuid4()}"
 
     extracao = robust_extraction_pipeline(
-        materials, user_id, session_id, model_name)
+        materials, user_id, session_id, model_name)    
 
     busca = search_market_price(
         extracao, current_date, user_id, session_id, model_name)
@@ -296,7 +301,7 @@ def construction_agents_team(materials: str, current_date: str, model_name: str)
     return {"analise_json": analise_json_string}
 
 
-def merge_items(existing_items: list, new_items: list):
+def merge_items(existing_items: list, new_items: list):    
     existing_materials = {item.get['material'].lower().strip()
                           for item in existing_items}
     merged = existing_items.copy()
@@ -306,3 +311,4 @@ def merge_items(existing_items: list, new_items: list):
             merged.append(item)
 
     return merged
+
