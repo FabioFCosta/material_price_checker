@@ -2,7 +2,7 @@
 import uuid
 from google.adk.agents import Agent
 from google.adk.tools import google_search
-from modules.common import call_agent, json_from_LLM_response, run_agent_or_fail
+from modules.common import call_agent, json_from_LLM_response, process_prices, run_agent_or_fail
 
 
 def extract_data_from_text(text_content: str, user_id: str, session_id: str, model_name: str):
@@ -296,23 +296,23 @@ def material_quoting(material_description: str, current_date: str, user_id: str,
         description='Agent that searches the price range of material.',
         tools=[google_search],
         instruction="""
-            You are an expert in procurement and price quotation for construction materials in Brazil (Price in BRL - R$).
-            Analyze the provided material description and, using the google-search tool, indicate the average current price range (considering today’s date) and the links where buying that.
-            
-            The input will be a material description.
-            The output should be a JSON object, including:
-            - 'material' (the original description)
-            - 'highest_price' found in R$
-            - 'lowest_price' found in R$
-            - 'links' maximum of 5 found links.
+            You are a purchasing assistant. Your job is to generate a price quotation for the material described below.
 
-            If a value is not found, return it with null in the corresponding field (highest_price or lowest_price).
+            -> Search for the material considering Brazilian suppliers. Only consider reliable sources (e.g., Leroy Merlin, Mercado Livre, Amazon BR, official distributor sites).
+            -> Do not use results from blogs, forums, YouTube, or unrelated content.
+            -> Open the page (if possible) and confirm that the product matches exactly the description. If the page is broken, skip it.
+            -> If the price is visible and trustworthy, capture it. Otherwise, do not use it.
+            -> Return the JSON format with:
+
+            - material: (string) description of the material.
+
+            - links: (array of up to 5) valid links where the items were obtained. All links must be functional and relevant.
+
+            If you cannot find any valid price, return an empty list for links.
 
             **Example output:**            
                 {
                     "material": "Portland Cement CP II E-32",
-                    "highest_price": 70.00,
-                    "lowest_price": 30.00,
                     "links": ["link1","link2"]
                 }
 
@@ -331,25 +331,44 @@ def material_price_revision(material_quoting: str, current_date: str, user_id: s
         description='Agent that searches the price range of material.',
         tools=[google_search],
         instruction="""
-            You are an expert in revise price quotation for construction materials in Brazil (Price in BRL - R$).
-            Analyze the provided material quotation, using the google-search tool, verify if the quotation is well done and, if not, revise it.
-            
-            The input will be a material quotation with material description, highest price, lowest price and their font links.
-            The output should be a JSON object with the input same format only with the data revised, when necessary:
-            - 'material' (the original description)
-            - 'highest_price' found in R$
-            - 'lowest_price' found in R$
-            - 'links' maximum of 5 found links.
+            You are an assistant responsible for revising material price quotations.
+
+        -> Your job is to verify if the material price quotation is accurate by checking the provided links and optionally performing a complementary search.
+
+            Validation Rules:
+
+        -> Open each link and verify:
+
+                - The product matches exactly the described material.
+
+                - The page is functional (no errors like 404 Not Found).
+
+                - The price is visible, in Brazilian Real (BRL), and reliable.
+
+        -> Discard links that are broken, incorrect, or lead to unrelated products.
+
+        Output Format (JSON):
+
+            - material: description.
+
+            - research_results : Array of prices and links
+
+            links: only valid, functional links that match the material.
 
             **Example output:**            
                 {
                     "material": "Portland Cement CP II E-32",
-                    "highest_price": 70.00,
-                    "lowest_price": 30.00,
-                    "links": ["link1","link2"]
+                    "research_results": [
+                        {
+                        "price": float,
+                        "link": "string"
+                        },
+                        ...
+                    ]
                 }
-            
-            If there is no change to be done, return exactly the same input data.
+
+            - If no valid price is found, return research_results as an empty list and set highest_price and lowest_price to null.
+            - Do not include links that are broken, irrelevant, or unrelated.
 
             Remember: Output STRICTLY a valid JSON object. Do not include any additional commentary or explanations. No text outside JSON brackets.
         """
@@ -363,9 +382,12 @@ def quoting_analyzis_agents_team(materials: str, current_date: str, model_name: 
     user_id = f"user-{uuid.uuid4()}"
     session_id = f"session-{uuid.uuid4()}"
 
-    extracao = run_agent_or_fail(robust_extraction_pipeline, materials, user_id, session_id, model_name, agent_name="de extração")
-    busca = run_agent_or_fail(search_market_price, extracao, current_date, user_id, session_id, model_name, agent_name="de busca de preços")
-    analise_json_string = run_agent_or_fail(analyze_material_prices, busca, current_date, user_id, session_id, model_name, agent_name="de análise de preços")
+    extracao = run_agent_or_fail(robust_extraction_pipeline, materials,
+                                 user_id, session_id, model_name, agent_name="de extração")
+    busca = run_agent_or_fail(search_market_price, extracao, current_date,
+                              user_id, session_id, model_name, agent_name="de busca de preços")
+    analise_json_string = run_agent_or_fail(
+        analyze_material_prices, busca, current_date, user_id, session_id, model_name, agent_name="de análise de preços")
 
     return {"analise_json": analise_json_string}
 
@@ -374,9 +396,17 @@ def quoting_material_agents_team(material: str, current_date: str, model_name: s
     user_id = f"user-{uuid.uuid4()}"
     session_id = f"session-{uuid.uuid4()}"
 
-    quoting=run_agent_or_fail(material_quoting,material, current_date, user_id, session_id, model_name, agent_name="de cotação")
-    revision=run_agent_or_fail(material_price_revision,quoting, current_date, user_id, session_id, model_name, agent_name="de revisão de cotação")
-    return json_from_LLM_response(revision)
+    quoting = run_agent_or_fail(material_quoting, material, current_date,
+                                user_id, session_id, model_name, agent_name="de cotação")
+    revision = run_agent_or_fail(material_price_revision, quoting, current_date,
+                                 user_id, session_id, model_name, agent_name="de revisão de cotação")
+    response = json_from_LLM_response(revision)
+    prices = process_prices(response['research_results'])
+    response['highest_price'] = prices['highest_price']
+    response['lowest_price'] = prices['lowest_price']
+    print(response)
+
+    return response
 
 
 def merge_items(existing_items: list, new_items: list):

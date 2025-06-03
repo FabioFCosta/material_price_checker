@@ -54,6 +54,18 @@ def run_agent_or_fail(agent_func, *args, agent_name: str):
         raise RuntimeError(f"❌ O Agente {agent_name} não retornou nenhum resultado.")
     return result
 
+def process_prices(results):
+    if not results:
+        return {'highest_price': None, 'lowest_price': None}
+    prices = [item['price'] for item in results]
+    highest_price = max(prices)
+    lowest_price = min(prices)
+
+    return {
+        "highest_price": highest_price,
+        "lowest_price": lowest_price,
+    }
+
 def extract_data_from_file(uploaded_file):
     """
     Extrai o conteúdo textual de arquivos XLSX ou PDF.

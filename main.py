@@ -270,15 +270,19 @@ def construction_program(selected_model, google_api_key):
     elif option == 'Cotação de produto':
         material_description = st.text_input(label='Insira a descrição do produto para cotação', help='Quanto melhor a descrição, mais consistente será o resultado.')
         if st.button(label='Cotar produto', disabled=material_description.strip() == ''):
-            result_df = pd.DataFrame()
             with st.spinner("Realizando cotação..."):
                 try:
                     result = quoting_material_agents_team(material_description,today_date, selected_model)
                     st.success("Cotação realizada com sucesso!")
-                    result_df = pd.DataFrame(result)
+                    st.subheader(f'📊 Cotação do material "{material_description}":')
 
-                    if not result_df.empty:
-                        st.dataframe(result_df)
+                    if result['highest_price']:
+                        st.write(f'Maior preço: R$ {result['highest_price']}')
+                    if result['lowest_price']:
+                        st.write(f'Menor preço: R$ {result['lowest_price']}')
+                    if result['research_results']:
+                        for item in result['research_results']:
+                            st.info(f"Preço: R$ {item['price']} - {item['link']}")
 
                 except json.JSONDecodeError as e:
                     st.error(
