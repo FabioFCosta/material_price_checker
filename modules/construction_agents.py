@@ -2,7 +2,8 @@
 import uuid
 from google.adk.agents import Agent
 from google.adk.tools import google_search
-from modules.common import call_agent, json_from_LLM_response
+from modules.common import call_agent, json_from_LLM_response, run_agent_or_fail
+
 
 def extract_data_from_text(text_content: str, user_id: str, session_id: str, model_name: str):
     extractor = Agent(
@@ -256,52 +257,129 @@ def robust_extraction_pipeline(text_content: str, user_id: str, session_id: str,
     iterations = 0
 
     extraction = extract_data_from_text(
-            text_content, user_id, session_id, model_name)
-    
-    while iterations < MAX_ITERATIONS: 
+        text_content, user_id, session_id, model_name)
+
+    while iterations < MAX_ITERATIONS:
         validation = validate_extracted_data(
             text_content, extraction, user_id, session_id, model_name)
-        
+
         validation_data = json_from_LLM_response(validation)
 
         hallucinated_items = validation_data.get('hallucinated_items', [])
         missing_items = validation_data.get('missing_items', [])
 
         if hallucinated_items:
-            extraction = [item for item in extraction if item['material'] not in hallucinated_items]
+            extraction = [
+                item for item in extraction if item['material'] not in hallucinated_items]
 
         if missing_items:
             missing = find_missing_items(
                 text_content, missing_items, user_id, session_id, model_name)
             if missing:
                 extraction = merge_items(extraction, missing)
-        
+
         if not hallucinated_items and not missing_items:
             break
 
-        iterations += 1 
-    else: 
-        raise Exception("Número máximo de tentativas de extração alcançado. A extração de dados pode estar incompleta.")
+        iterations += 1
+    else:
+        raise Exception(
+            "Número máximo de tentativas de extração alcançado. A extração de dados pode estar incompleta.")
 
     return extraction
 
 
-def construction_agents_team(materials: str, current_date: str, model_name: str):
+def material_quoting(material_description: str, current_date: str, user_id: str, session_id: str, model_name: str):
+    searcher = Agent(
+        name='quoting_agent',
+        model=model_name,
+        description='Agent that searches the price range of material.',
+        tools=[google_search],
+        instruction="""
+            You are an expert in procurement and price quotation for construction materials in Brazil (Price in BRL - R$).
+            Analyze the provided material description and, using the google-search tool, indicate the average current price range (considering today’s date) and the links where buying that.
+            
+            The input will be a material description.
+            The output should be a JSON object, including:
+            - 'material' (the original description)
+            - 'highest_price' found in R$
+            - 'lowest_price' found in R$
+            - 'links' maximum of 5 found links.
+
+            If a value is not found, return it with null in the corresponding field (highest_price or lowest_price).
+
+            **Example output:**            
+                {
+                    "material": "Portland Cement CP II E-32",
+                    "highest_price": 70.00,
+                    "lowest_price": 30.00,
+                    "links": ["link1","link2"]
+                }
+
+            Remember: Output STRICTLY a valid JSON object. Do not include any additional commentary or explanations. No text outside JSON brackets.
+        """
+    )
+    input_text = f"Material to search for market prices: {material_description}\nCurrent date: {current_date}"
+    output = call_agent(searcher, input_text, user_id, session_id)
+    return output
+
+
+def material_price_revision(material_quoting: str, current_date: str, user_id: str, session_id: str, model_name: str):
+    searcher = Agent(
+        name='quoting_agent',
+        model=model_name,
+        description='Agent that searches the price range of material.',
+        tools=[google_search],
+        instruction="""
+            You are an expert in revise price quotation for construction materials in Brazil (Price in BRL - R$).
+            Analyze the provided material quotation, using the google-search tool, verify if the quotation is well done and, if not, revise it.
+            
+            The input will be a material quotation with material description, highest price, lowest price and their font links.
+            The output should be a JSON object with the input same format only with the data revised, when necessary:
+            - 'material' (the original description)
+            - 'highest_price' found in R$
+            - 'lowest_price' found in R$
+            - 'links' maximum of 5 found links.
+
+            **Example output:**            
+                {
+                    "material": "Portland Cement CP II E-32",
+                    "highest_price": 70.00,
+                    "lowest_price": 30.00,
+                    "links": ["link1","link2"]
+                }
+            
+            If there is no change to be done, return exactly the same input data.
+
+            Remember: Output STRICTLY a valid JSON object. Do not include any additional commentary or explanations. No text outside JSON brackets.
+        """
+    )
+    input_text = f"Material to revision: {material_quoting}\nCurrent date: {current_date}"
+    output = call_agent(searcher, input_text, user_id, session_id)
+    return output
+
+
+def quoting_analyzis_agents_team(materials: str, current_date: str, model_name: str):
     user_id = f"user-{uuid.uuid4()}"
     session_id = f"session-{uuid.uuid4()}"
 
-    extracao = robust_extraction_pipeline(
-        materials, user_id, session_id, model_name)    
-
-    busca = search_market_price(
-        extracao, current_date, user_id, session_id, model_name)
-    analise_json_string = analyze_material_prices(
-        busca, current_date, user_id, session_id, model_name)
+    extracao = run_agent_or_fail(robust_extraction_pipeline, materials, user_id, session_id, model_name, agent_name="de extração")
+    busca = run_agent_or_fail(search_market_price, extracao, current_date, user_id, session_id, model_name, agent_name="de busca de preços")
+    analise_json_string = run_agent_or_fail(analyze_material_prices, busca, current_date, user_id, session_id, model_name, agent_name="de análise de preços")
 
     return {"analise_json": analise_json_string}
 
 
-def merge_items(existing_items: list, new_items: list):    
+def quoting_material_agents_team(material: str, current_date: str, model_name: str):
+    user_id = f"user-{uuid.uuid4()}"
+    session_id = f"session-{uuid.uuid4()}"
+
+    quoting=run_agent_or_fail(material_quoting,material, current_date, user_id, session_id, model_name, agent_name="de cotação")
+    revision=run_agent_or_fail(material_price_revision,quoting, current_date, user_id, session_id, model_name, agent_name="de revisão de cotação")
+    return json_from_LLM_response(revision)
+
+
+def merge_items(existing_items: list, new_items: list):
     existing_materials = {item.get['material'].lower().strip()
                           for item in existing_items}
     merged = existing_items.copy()
@@ -311,4 +389,3 @@ def merge_items(existing_items: list, new_items: list):
             merged.append(item)
 
     return merged
-

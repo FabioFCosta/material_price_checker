@@ -1,6 +1,7 @@
 #common_modules.py
 import json
 import os
+from typing import Optional, Tuple
 import re
 import pandas as pd
 import PyPDF2
@@ -9,6 +10,7 @@ import base64
 import pandas as pd
 
 from google.genai import types
+from google.genai.errors import ServerError
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.adk.agents import Agent
@@ -16,7 +18,7 @@ from google.adk.agents import Agent
 os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
 
 
-def call_agent(agent: Agent, message_text: str, user_id: str, session_id: str) -> str:
+def call_agent(agent: Agent, message_text: str, user_id: str, session_id: str) -> Tuple[Optional[str], Optional[str]]:
     session_service = InMemorySessionService()
     session = session_service.create_session(
         app_name=agent.name,
@@ -34,11 +36,23 @@ def call_agent(agent: Agent, message_text: str, user_id: str, session_id: str) -
                 for part in event.content.parts:
                     if part.text is not None:
                         final_response += part.text + "\n"
-        return final_response
-    except Exception as e:
-        return f"Error processing agent {agent.name}: {str(e)}"
+        return final_response.strip(), None
     
+    except ServerError as e:
+        if "503" in str(e) or "UNAVAILABLE" in str(e):
+            return None, "503: Model overloaded"
+        return None, str(e)
 
+    except Exception as e:
+        return None, str(e)
+
+def run_agent_or_fail(agent_func, *args, agent_name: str):
+    result, error = agent_func(*args)
+    if error:
+        raise RuntimeError(f"❌ O Agente {agent_name} falhou: {error}")
+    if not result:
+        raise RuntimeError(f"❌ O Agente {agent_name} não retornou nenhum resultado.")
+    return result
 
 def extract_data_from_file(uploaded_file):
     """

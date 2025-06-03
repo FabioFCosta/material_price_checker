@@ -4,8 +4,8 @@ from PIL import Image
 import streamlit as st
 import pandas as pd
 import json
-from modules.common import extract_data_from_file, generate_download_link
-from modules.construction_agents import construction_agents_team
+from modules.common import extract_data_from_file, generate_download_link, json_from_LLM_response
+from modules.construction_agents import quoting_analyzis_agents_team, quoting_material_agents_team
 from modules.hospital_agents import hospital_agents_team
 from datetime import datetime
 from authlib.integrations.requests_client import OAuth2Session
@@ -150,116 +150,147 @@ def main():
 
 def construction_program(selected_model, google_api_key):
     st.title("🏗️ Material Price Checker")
-    st.write("Envie um arquivo PDF ou XLSX com orçamento de materiais de construção para verificar possíveis preços inconsistentes.")
 
-    uploaded_file = st.file_uploader(
-        "Faça upload do arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"], disabled=not google_api_key)
-    
-    if st.button(label='Iniciar análise', disabled=uploaded_file is None):
-        with st.spinner("Extraindo dados do arquivo..."):
-            raw_text_content = extract_data_from_file(uploaded_file)
+    today_date = datetime.now().strftime("%d/%m/%Y")
 
-        if not raw_text_content:
-            st.error(
-                "Não foi possível extrair texto do arquivo. Por favor, verifique o formato ou o conteúdo.")
-        else:
-            st.success(
-                "Texto extraído com sucesso. Iniciando análise de preços...")
+    option = st.radio("Selecione uma opção:", options=[
+                      'Cotação de produto', 'Análise de cotação'], horizontal=True)
 
-            today_date = datetime.now().strftime("%d/%m/%Y")
+    if option == 'Análise de cotação':
+        st.write("Envie um arquivo PDF ou XLSX com orçamento de materiais de construção para verificar possíveis preços inconsistentes.")
+        uploaded_file = st.file_uploader(
+            "Faça upload do arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"], disabled=not google_api_key)
 
-            analysis_df = pd.DataFrame()
+        if st.button(label='Iniciar análise', disabled=uploaded_file is None):
+            with st.spinner("Extraindo dados do arquivo..."):
+                raw_text_content = extract_data_from_file(uploaded_file)
 
-            with st.spinner(f"Analisando materiais e pesquisando preços de mercado com {selected_model}..."):
-                try:
-                    result = construction_agents_team(
-                        raw_text_content, today_date, selected_model)
-                    json_string_analysis = result.get("analise_json")
+            if not raw_text_content:
+                st.error(
+                    "Não foi possível extrair texto do arquivo. Por favor, verifique o formato ou o conteúdo.")
+            else:
+                st.success(
+                    "Texto extraído com sucesso. Iniciando análise de preços...")
 
-                    if json_string_analysis:
-                        cleaned_json_string = json_string_analysis.strip().replace(
-                            "```json\n", "").replace("\n```", "")
-                        analysis_data = json.loads(cleaned_json_string)
-                        analysis_df = pd.DataFrame(analysis_data)
-                    else:
+                analysis_df = pd.DataFrame()
+
+                with st.spinner(f"Analisando materiais e pesquisando preços de mercado com {selected_model}..."):
+                    try:
+                        result = quoting_analyzis_agents_team(
+                            raw_text_content, today_date, selected_model)
+                        json_string_analysis = result.get("analise_json")
+
+                        if json_string_analysis:                            
+                            analysis_data = json_from_LLM_response(json_string_analysis)
+                            analysis_df = pd.DataFrame(analysis_data)
+                        else:
+                            st.warning(
+                                "O agente não retornou dados de análise no formato esperado.")
+
+                    except json.JSONDecodeError as e:
+                        st.error(
+                            f"Erro ao decodificar JSON da análise: {e}. Saída bruta: {json_string_analysis[:500]}...")
+                    except RuntimeError as e:
+                        if "503" in str(e):
+                            st.error("❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
+                        else:
+                            st.error(f"⚠️ {str(e)}")
+                    except Exception as e:
+                        st.error(
+                            f"Ocorreu um erro inesperado durante a orquestração dos agentes: {e}")
+
+                if not analysis_df.empty:
+                    st.subheader("📊 Resumo da Análise de Preços")
+
+                    status_counts = analysis_df['status'].value_counts()
+                    st.write(
+                        f"Total de materiais analisados: **{len(analysis_df)}**")
+                    for status, count in status_counts.items():
+                        if status == "Within market":
+                            st.success(f"**{status}**: {count} materiais")
+                        elif status == "Pesquisa necessária":
+                            st.info(
+                                f"**{status}**: {count} materiais (preços de mercado não encontrados/definidos)")
+                        else:
+                            st.warning(f"**{status}**: {count} materiais")
+
+                    st.markdown("---")
+
+                    st.subheader("Detalhes da Análise")
+
+                    def color_status(val):
+                        if val == "Above market":
+                            color = '#FF8C00'
+                        elif val == "Below market":
+                            color = '#DC143C'
+                        elif val == "Within market":
+                            color = '#3CB371'
+                        elif val == "Research needed":
+                            color = '#4682B4'
+                        else:
+                            color = ''
+                        return f'background-color: {color}'
+
+                    st.dataframe(analysis_df.style.applymap(
+                        color_status, subset=['status']))
+
+                    st.markdown("---")
+
+                    for _, row in analysis_df.iterrows():
+                        links = set(row['lowest_price_links'] or [])
+                        if links:
+                            st.markdown(
+                                f"Menores preços para {row['material']}:")
+                            for link in list(links):
+                                st.info(link)
+
+                    flagged_materials_df = analysis_df[
+                        (analysis_df['status'] == "Above market") |
+                        (analysis_df['status'] == "Below market") |
+                        (analysis_df['status'] == "Research needed")
+                    ]
+
+                    if not flagged_materials_df.empty:
                         st.warning(
-                            "O agente não retornou dados de análise no formato esperado.")
+                            "⚠️ **Materiais com Potenciais Inconsistências ou que Requerem Pesquisa:**")
+                        st.dataframe(flagged_materials_df.style.applymap(
+                            color_status, subset=['status']))
+                    else:
+                        st.success(
+                            "🎉 Nenhum material encontrado com preço fora da faixa ou que precise de pesquisa adicional.")
+
+                    st.write("📥 Baixar o resultado da análise:")
+                    link = generate_download_link(
+                        df=analysis_df, fileName="resultado_analise.csv")
+                    st.markdown(link, unsafe_allow_html=True)
+
+                else:
+                    st.info(
+                        "Nenhum dado de material foi processado para análise. Por favor, verifique a saída dos agentes.")
+    elif option == 'Cotação de produto':
+        material_description = st.text_input(label='Insira a descrição do produto para cotação', help='Quanto melhor a descrição, mais consistente será o resultado.')
+        if st.button(label='Cotar produto', disabled=material_description.strip() == ''):
+            result_df = pd.DataFrame()
+            with st.spinner("Realizando cotação..."):
+                try:
+                    result = quoting_material_agents_team(material_description,today_date, selected_model)
+                    st.success("Cotação realizada com sucesso!")
+                    result_df = pd.DataFrame(result)
+
+                    if not result_df.empty:
+                        st.dataframe(result_df)
 
                 except json.JSONDecodeError as e:
                     st.error(
                         f"Erro ao decodificar JSON da análise: {e}. Saída bruta: {json_string_analysis[:500]}...")
+                except RuntimeError as e:
+                    if "503" in str(e):
+                        st.error("❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
+                    else:
+                        st.error(f"⚠️ {str(e)}")
                 except Exception as e:
                     st.error(
-                        f"Ocorreu um erro durante a orquestração dos agentes: {e}")
-
-            if not analysis_df.empty:
-                st.subheader("📊 Resumo da Análise de Preços")
-
-                status_counts = analysis_df['status'].value_counts()
-                st.write(
-                    f"Total de materiais analisados: **{len(analysis_df)}**")
-                for status, count in status_counts.items():
-                    if status == "Dentro do mercado":
-                        st.success(f"**{status}**: {count} materiais")
-                    elif status == "Pesquisa necessária":
-                        st.info(
-                            f"**{status}**: {count} materiais (preços de mercado não encontrados/definidos)")
-                    else:
-                        st.warning(f"**{status}**: {count} materiais")
-
-                st.markdown("---")
-
-                st.subheader("Detalhes da Análise")
-
-                def color_status(val):
-                    if val == "Above market":
-                        color = '#FF8C00'
-                    elif val == "Below market":
-                        color = '#DC143C'
-                    elif val == "Within market":
-                        color = '#3CB371'
-                    elif val == "Research needed":
-                        color = '#4682B4'
-                    else:
-                        color = ''
-                    return f'background-color: {color}'
-
-                st.dataframe(analysis_df.style.applymap(
-                    color_status, subset=['status']))
-
-                st.markdown("---")
-
-                for _, row in analysis_df.iterrows():
-                    links = set(row['lowest_price_links'] or [])
-                    if links:
-                        st.markdown(f"Menores preços para {row['material']}:")
-                        for link in list(links):
-                            st.info(link)
-
-                flagged_materials_df = analysis_df[
-                    (analysis_df['status'] == "Above market") |
-                    (analysis_df['status'] == "Below market") |
-                    (analysis_df['status'] == "Research needed")
-                ]
-
-                if not flagged_materials_df.empty:
-                    st.warning(
-                        "⚠️ **Materiais com Potenciais Inconsistências ou que Requerem Pesquisa:**")
-                    st.dataframe(flagged_materials_df.style.applymap(
-                        color_status, subset=['status']))
-                else:
-                    st.success(
-                        "🎉 Nenhum material encontrado com preço fora da faixa ou que precise de pesquisa adicional.")
-
-                st.write("📥 Baixar o resultado da análise:")
-                link = generate_download_link(
-                    df=analysis_df, fileName="resultado_analise.csv")
-                st.markdown(link, unsafe_allow_html=True)
-
-            else:
-                st.info(
-                    "Nenhum dado de material foi processado para análise. Por favor, verifique a saída dos agentes.")
-
+                        f"Ocorreu um erro inesperado durante a orquestração dos agentes: {e}")
 
 def hospital_program(selected_model, google_api_key):
     st.title("📦 Hospital Material Checker")
@@ -289,10 +320,8 @@ def hospital_program(selected_model, google_api_key):
                         raw_text_content, today_date, selected_model)
                     json_string_analysis = result.get("analise_json")
 
-                    if json_string_analysis:
-                        cleaned_json_string = json_string_analysis.strip().replace(
-                            "```json\n", "").replace("\n```", "")
-                        analysis_data = json.loads(cleaned_json_string)
+                    if json_string_analysis:                        
+                        analysis_data = json_from_LLM_response(json_string_analysis)
                         analysis_df = pd.DataFrame(analysis_data)
                     else:
                         st.warning(
@@ -301,6 +330,11 @@ def hospital_program(selected_model, google_api_key):
                 except json.JSONDecodeError as e:
                     st.error(
                         f"Erro ao decodificar JSON da análise: {e}. Saída bruta: {json_string_analysis[:500]}...")
+                except RuntimeError as e:
+                    if "503" in str(e):
+                        st.error("❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
+                    else:
+                        st.error(f"⚠️ {str(e)}")
                 except Exception as e:
                     st.error(
                         f"Ocorreu um erro durante a orquestração dos agentes: {e}")
@@ -312,7 +346,7 @@ def hospital_program(selected_model, google_api_key):
                 st.write(
                     f"Total de materiais analisados: **{len(analysis_df)}**")
                 for status, count in status_counts.items():
-                    if status == "Dentro do mercado":
+                    if status == "Within market":
                         st.success(f"**{status}**: {count} materiais")
                     elif status == "Pesquisa necessária":
                         st.info(
