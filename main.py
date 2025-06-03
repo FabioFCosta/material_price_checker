@@ -14,8 +14,7 @@ st.set_page_config(page_title="Material Price Checker", layout="wide")
 
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-
-REDIRECT_URI = "https://material-price-checker.streamlit.app"
+REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 AUTHORIZATION_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
