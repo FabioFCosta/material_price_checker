@@ -1,5 +1,6 @@
 # agents.py
 import uuid
+import json
 from google.adk.agents import Agent
 from google.adk.tools import google_search
 from modules.common import call_agent
@@ -83,17 +84,11 @@ def validate_extracted_data(text_content: str, extracted_json: str, user_id: str
             Return a JSON object with:
             - "missing_items": a list of materials (strings) that were present in the document but missing in the extracted JSON.
             - "hallucinated_items": a list of materials (strings) that are in the extracted JSON but do not exist in the document.
-            - "status": one of the following:
-                * "Valid extraction": if no missing or hallucinated items are found.
-                * "Missing items": if there are missing items.
-                * "Hallucinated items": if there are hallucinated items.
-                * "Missing and hallucinated items": if both problems are present.
-
+            
             **Example Output:**
             {
                 "missing_items": ["Jacuzzi Filtration Set", "LED Monochromatic Reflectors"],
                 "hallucinated_items": [],
-                "status": "Missing items"
             }
 
             VERY IMPORTANT: Return ONLY the JSON object. No explanations, comments, or text outside the JSON.
@@ -121,13 +116,16 @@ def find_missing_items(text_content: str, extracted_json: str, user_id: str, ses
         instruction="""
             You are an expert assistant in text analysis.
 
-            Your task is to carefully read the provided document and check whether there are any materials or items with unit prices that were NOT included in the following extracted list.
+            Your task is to carefully read the provided document and find the items and their prices (in BRL - R$) that are related in json.
 
             - Input 1: Full document text.
-            - Input 2: List of extracted items (materials + unit_price).
+            - Input 2: List of missing material.
 
             Output:
-            A JSON array containing ONLY the items that were missed.
+            A JSON array containing ONLY the information about items that were missed:
+            [
+                {"material": "Jacuzzi Filtration Set TP", "unit_price": 5120.00}
+            ]
 
             If no items were missed, return an empty JSON array ([]).
             VERY IMPORTANT: Return ONLY the JSON object. No explanations, comments, or text outside the JSON.
@@ -256,20 +254,27 @@ def analyze_material_prices(text_content: str, current_date: str, user_id: str, 
 
 
 def robust_extraction_pipeline(text_content: str, user_id: str, session_id: str, model_name: str):
+
     extraction = extract_data_from_text(
         text_content, user_id, session_id, model_name)
 
     validation = validate_extracted_data(
-        extraction, text_content, user_id, session_id, model_name)
+        text_content, extraction, user_id, session_id, model_name)
 
-    hallucinated_items = [item for item in validation if not item['valid']]
+    cleaned_json_string = validation.strip().replace(
+        "```json\n", "").replace("\n```", "")
+    validation_data = json.loads(cleaned_json_string)
+
+    hallucinated_items = validation_data.get('hallucinated_items', [])
+    missing_items = validation_data.get('missing_items', [])
 
     if hallucinated_items:
         extraction = extract_data_from_text(
             text_content, user_id, session_id, model_name)
-    else:
+
+    if missing_items:
         missing = find_missing_items(
-            extraction, text_content, user_id, session_id, model_name)
+            text_content, missing_items, user_id, session_id, model_name)
         if missing:
             extraction = merge_items(extraction, missing)
 
@@ -282,6 +287,7 @@ def construction_agents_team(materials: str, current_date: str, model_name: str)
 
     extracao = robust_extraction_pipeline(
         materials, user_id, session_id, model_name)
+
     busca = search_market_price(
         extracao, current_date, user_id, session_id, model_name)
     analise_json_string = analyze_material_prices(
@@ -291,7 +297,7 @@ def construction_agents_team(materials: str, current_date: str, model_name: str)
 
 
 def merge_items(existing_items: list, new_items: list):
-    existing_materials = {item['material'].lower().strip()
+    existing_materials = {item.get['material'].lower().strip()
                           for item in existing_items}
     merged = existing_items.copy()
 
