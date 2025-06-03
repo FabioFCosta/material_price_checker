@@ -289,13 +289,13 @@ def robust_extraction_pipeline(text_content: str, user_id: str, session_id: str,
     return extraction
 
 
-def material_quoting(material_description: str, current_date: str, user_id: str, session_id: str, model_name: str):
+def material_quoting(material_description: str, current_date: str, user_id: str, session_id: str, model_name: str, min_links: int):
     searcher = Agent(
         name='quoting_agent',
         model=model_name,
         description='Agent that searches the price range of material.',
         tools=[google_search],
-        instruction="""
+        instruction=f"""
             You are a purchasing assistant. Your job is to generate a price quotation for the material described below.
 
             -> Search for the material considering Brazilian suppliers. Only consider reliable sources (e.g., Leroy Merlin, Mercado Livre, Amazon BR, official distributor sites).
@@ -306,15 +306,15 @@ def material_quoting(material_description: str, current_date: str, user_id: str,
 
             - material: (string) description of the material.
 
-            - links: (array of up to 5) valid links where the items were obtained. All links must be functional and relevant.
+            - links: (array of minimum {min_links}) valid links where the items were obtained. All links must be functional and relevant.
 
             If you cannot find any valid price, return an empty list for links.
 
             **Example output:**            
-                {
+                {{
                     "material": "Portland Cement CP II E-32",
                     "links": ["link1","link2"]
-                }
+                }}
 
             Remember: Output STRICTLY a valid JSON object. Do not include any additional commentary or explanations. No text outside JSON brackets.
         """
@@ -392,12 +392,12 @@ def quoting_analyzis_agents_team(materials: str, current_date: str, model_name: 
     return {"analise_json": analise_json_string}
 
 
-def quoting_material_agents_team(material: str, current_date: str, model_name: str):
+def quoting_material_agents_team(material: str, current_date: str, model_name: str, min_links: int):
     user_id = f"user-{uuid.uuid4()}"
     session_id = f"session-{uuid.uuid4()}"
 
     quoting = run_agent_or_fail(material_quoting, material, current_date,
-                                user_id, session_id, model_name, agent_name="de cotação")
+                                user_id, session_id, model_name, min_links, agent_name="de cotação")
     revision = run_agent_or_fail(material_price_revision, quoting, current_date,
                                  user_id, session_id, model_name, agent_name="de revisão de cotação")
     response = json_from_LLM_response(revision)

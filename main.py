@@ -180,8 +180,9 @@ def construction_program(selected_model, google_api_key):
                             raw_text_content, today_date, selected_model)
                         json_string_analysis = result.get("analise_json")
 
-                        if json_string_analysis:                            
-                            analysis_data = json_from_LLM_response(json_string_analysis)
+                        if json_string_analysis:
+                            analysis_data = json_from_LLM_response(
+                                json_string_analysis)
                             analysis_df = pd.DataFrame(analysis_data)
                         else:
                             st.warning(
@@ -192,7 +193,8 @@ def construction_program(selected_model, google_api_key):
                             f"Erro ao decodificar JSON da análise: {e}. Saída bruta: {json_string_analysis[:500]}...")
                     except RuntimeError as e:
                         if "503" in str(e):
-                            st.error("❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
+                            st.error(
+                                "❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
                         else:
                             st.error(f"⚠️ {str(e)}")
                     except Exception as e:
@@ -267,14 +269,22 @@ def construction_program(selected_model, google_api_key):
                 else:
                     st.info(
                         "Nenhum dado de material foi processado para análise. Por favor, verifique a saída dos agentes.")
+
     elif option == 'Cotação de produto':
-        material_description = st.text_input(label='Insira a descrição do produto para cotação', help='Quanto melhor a descrição, mais consistente será o resultado.')
+
+        material_description = st.text_input(label='Insira a descrição do produto para cotação',
+                                             help='Quanto melhor a descrição, mais consistente será o resultado.')
+        min_links = st.number_input(
+            label='Número mínimo de URLs:', min_value=1, max_value=10, step=1)
+
         if st.button(label='Cotar produto', disabled=material_description.strip() == ''):
             with st.spinner("Realizando cotação..."):
                 try:
-                    result = quoting_material_agents_team(material_description,today_date, selected_model)
+                    result = quoting_material_agents_team(
+                        material_description, today_date, selected_model, min_links=min_links or 2)
                     st.success("Cotação realizada com sucesso!")
-                    st.subheader(f'📊 Cotação do material "{material_description}":')
+                    st.subheader(
+                        f'📊 Cotação do material "{material_description}":')
 
                     if result['highest_price']:
                         st.write(f'Maior preço: R$ {result['highest_price']}')
@@ -282,19 +292,22 @@ def construction_program(selected_model, google_api_key):
                         st.write(f'Menor preço: R$ {result['lowest_price']}')
                     if result['research_results']:
                         for item in result['research_results']:
-                            st.info(f"Preço: R$ {item['price']} - {item['link']}")
+                            st.info(
+                                f"Preço: R$ {item['price']} - {item['link']}")
 
                 except json.JSONDecodeError as e:
                     st.error(
                         f"Erro ao decodificar JSON da análise: {e}. Saída bruta: {json_string_analysis[:500]}...")
                 except RuntimeError as e:
                     if "503" in str(e):
-                        st.error("❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
+                        st.error(
+                            "❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
                     else:
                         st.error(f"⚠️ {str(e)}")
                 except Exception as e:
                     st.error(
                         f"Ocorreu um erro inesperado durante a orquestração dos agentes: {e}")
+
 
 def hospital_program(selected_model, google_api_key):
     st.title("📦 Hospital Material Checker")
@@ -324,8 +337,9 @@ def hospital_program(selected_model, google_api_key):
                         raw_text_content, today_date, selected_model)
                     json_string_analysis = result.get("analise_json")
 
-                    if json_string_analysis:                        
-                        analysis_data = json_from_LLM_response(json_string_analysis)
+                    if json_string_analysis:
+                        analysis_data = json_from_LLM_response(
+                            json_string_analysis)
                         analysis_df = pd.DataFrame(analysis_data)
                     else:
                         st.warning(
@@ -336,7 +350,8 @@ def hospital_program(selected_model, google_api_key):
                         f"Erro ao decodificar JSON da análise: {e}. Saída bruta: {json_string_analysis[:500]}...")
                 except RuntimeError as e:
                     if "503" in str(e):
-                        st.error("❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
+                        st.error(
+                            "❌ O modelo está sobrecarregado (503 Service Unavailable). Por favor, tente novamente em alguns minutos.")
                     else:
                         st.error(f"⚠️ {str(e)}")
                 except Exception as e:
